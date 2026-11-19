@@ -73,3 +73,15 @@ def test_configured_router_loads_provider_metadata_without_inline_secrets(monkey
         "providers": ["cloud", "local"],
         "routes": {"planning": ["local", "cloud"]},
     }
+
+
+
+def test_remote_model_provider_rejects_plain_http():
+    from mitra.providers import OpenAICompatibleProvider
+
+    with pytest.raises(ValueError, match="HTTPS"):
+        OpenAICompatibleProvider(
+            base_url="http://api.example.test/v1",
+            model="unsafe-model",
+            api_key_env="MODEL_KEY",
+        )
