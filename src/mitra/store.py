@@ -147,7 +147,7 @@ class Store:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 raise ValueError("Task not found")
-            if row["status"] != "planning" or row["lease_token"] != lease_token:
+            if row["status"] not in {"planning", "awaiting_approval"} or row["lease_token"] != lease_token:
                 raise PermissionError("valid active worker lease is required")
             decision = evaluate_action(RiskLevel(row["risk"]), approved=approved)
             if not decision.allowed:
