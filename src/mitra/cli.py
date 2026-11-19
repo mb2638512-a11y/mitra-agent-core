@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from mitra.config import InstanceConfig
-from mitra.security import issue_approval_token
+from mitra.security import issue_approval_token, load_or_create_approval_secret
 from mitra.store import Store
 
 
@@ -42,7 +42,7 @@ def create_approval_token(task_id: str, approver: str, expires_in: int) -> int:
         raise SystemExit("Task not found in this MITRA instance.")
     if task["status"] != "awaiting_approval":
         raise SystemExit("Only tasks awaiting approval can receive an approval token.")
-    secret = os.getenv("MITRA_APPROVAL_SECRET", "")
+    secret = load_or_create_approval_secret(config.data_dir / "approval.key")
     try:
         token = issue_approval_token(task_id, approver, secret, expires_in=expires_in)
     except ValueError as exc:
@@ -91,8 +91,6 @@ def connect_host(host: str, custom_path: str | None = None) -> int:
     }
     if os.getenv("MITRA_HOME"):
         entry["env"]["MITRA_HOME"] = os.environ["MITRA_HOME"]
-    if os.getenv("MITRA_APPROVAL_SECRET"):
-        entry["env"]["MITRA_APPROVAL_SECRET"] = os.environ["MITRA_APPROVAL_SECRET"]
     servers["mitra"] = entry
 
     temporary = config_path.with_suffix(config_path.suffix + ".tmp")
