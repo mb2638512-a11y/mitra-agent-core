@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-MITRA is a portable capability runtime, not a cloud-hosted personality and not an LLM. An AI host (Claude, MiniMax, Gemini, an IDE agent or a custom runtime) connects to a local MITRA MCP server. The host remains responsible for model inference and agent policy; MITRA provides tools, local state, adapters and guardrails.
+MITRA is a portable capability runtime, not a cloud-hosted personality and not an LLM. An AI host (any MCP-compatible assistant, IDE agent or custom runtime) connects to a local MITRA MCP server. The host remains responsible for model inference and agent policy; MITRA provides tools, local state, adapters and guardrails.
 
 ## Instance model
 
@@ -54,9 +54,9 @@ No credentials or personal memory are shared between clones by default. A user c
 | OAuth credential vault | Planned |
 | Gmail / calendar / drive adapters | Planned |
 | Browser automation | Planned |
-| Filesystem write adapter | Implemented for approved workspace text writes with durable receipts |
+
 | General background executor | Planned (only approved workspace write tool currently executes a side effect) |
-| Optional model-powered plan drafting | Implemented; strict JSON and ready-adapter validation, no auto-execution |
+| Multi-provider model routing and plan drafting | Implemented; named routes, ordered fallback, strict JSON and ready-adapter validation |
 | Agent-to-agent federation | Planned |
 | Enterprise multi-tenant controls | Planned |
 
