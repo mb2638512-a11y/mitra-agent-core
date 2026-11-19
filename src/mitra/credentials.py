@@ -95,7 +95,7 @@ class CredentialVault:
         nonce = secrets.token_bytes(12)
         ciphertext = self._cipher.encrypt(nonce, plaintext, self._aad(provider, account_id))
         now = datetime.now(timezone.utc).isoformat()
-        with self._connect() as db:
+        with self._connection() as db:
             db.execute(
                 """INSERT INTO credentials(provider, account_id, nonce, ciphertext, updated_at)
                 VALUES (?, ?, ?, ?, ?)
@@ -107,7 +107,7 @@ class CredentialVault:
 
     def get(self, provider: str, account_id: str) -> dict[str, Any] | None:
         self._validate_identity(provider, account_id)
-        with self._connect() as db:
+        with self._connection() as db:
             row = db.execute(
                 "SELECT nonce, ciphertext FROM credentials WHERE provider=? AND account_id=?",
                 (provider, account_id),
@@ -126,7 +126,7 @@ class CredentialVault:
         return value
 
     def list_metadata(self) -> list[dict]:
-        with self._connect() as db:
+        with self._connection() as db:
             rows = db.execute(
                 "SELECT provider, account_id, updated_at FROM credentials ORDER BY provider, account_id"
             ).fetchall()
@@ -134,7 +134,7 @@ class CredentialVault:
 
     def delete(self, provider: str, account_id: str) -> bool:
         self._validate_identity(provider, account_id)
-        with self._connect() as db:
+        with self._connection() as db:
             cursor = db.execute(
                 "DELETE FROM credentials WHERE provider=? AND account_id=?",
                 (provider, account_id),
