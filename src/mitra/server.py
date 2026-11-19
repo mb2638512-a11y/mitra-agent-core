@@ -8,7 +8,7 @@ from mcp.server import MCPServer
 
 from mitra import __version__
 from mitra.config import InstanceConfig
-from mitra.security import RiskLevel, evaluate_action
+from mitra.security import RiskLevel, evaluate_action, load_or_create_approval_secret
 from mitra.planner import TaskPlan
 from mitra.engine import validate_transition
 from mitra.store import Store
@@ -176,7 +176,7 @@ def mitra_start_task(task_id: str, lease_token: str) -> dict:
 @mcp.tool()
 def mitra_approve_task(task_id: str, approval_token: str, lease_seconds: int = 60) -> dict:
     """Approve a gated task using a signed, task-bound, single-use local approval token."""
-    secret = os.getenv("MITRA_APPROVAL_SECRET", "")
+    secret = load_or_create_approval_secret(config.data_dir / "approval.key")
     return store.approve_task(task_id, approval_token, secret, lease_seconds=lease_seconds)
 
 
