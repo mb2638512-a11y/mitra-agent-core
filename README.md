@@ -67,11 +67,11 @@ Each instance has its own local database. A host must support MCP and allow loca
 
 ## Scoped workspace
 
-Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects absolute paths, traversal and symlinks; it reads UTF-8 text only and enforces a 1 MB limit. Filesystem writes remain disabled until an allowlisted write adapter is added. See [Filesystem access](docs/FILESYSTEM.md).
+Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects absolute paths, traversal and symlinks; it reads UTF-8 text only and enforces a 1 MB limit. Approved text writes are available through the separate filesystem-write adapter, with task-bound approval and durable idempotency receipts. See [Filesystem access](docs/FILESYSTEM.md).
 
 ## Capability registry
 
-MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed. A typed adapter contract and explicit in-process allowlist now exist; the filesystem read adapter is the first registered implementation. `authorize_adapter_execution` checks the active task lease, ready capability, installed adapter, operation allowlist and minimum risk before returning a permit. It does not invoke the adapter; no background worker or external side-effect executor is enabled yet.
+MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed. A typed adapter contract and explicit in-process allowlist are active. `authorize_adapter_execution` checks the active task lease, ready capability, installed adapter, operation allowlist and minimum risk. The filesystem write tool additionally requires an approved running task and records a durable idempotency receipt. No background worker or external-service adapter is enabled yet.
 
 ## Authenticated local approvals
 
