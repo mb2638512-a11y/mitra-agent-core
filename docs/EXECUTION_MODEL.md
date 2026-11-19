@@ -12,14 +12,15 @@ A plan contains one objective, 1–20 measurable success criteria, and 1–30 st
 
 `queued → planning → awaiting_approval → running → verifying → completed`
 
-A worker claims one queued task and receives a random lease token. The claim only moves the task into planning. Starting a high-impact task without an approver label moves it to `awaiting_approval`. A later start call must supply an approver label; that label is recorded in the task event log. This is an auditable *claim*, not verified human identity: a production host must authenticate the approving user and bind the identity to the approval request before enabling real side-effect adapters.
+A worker claims one queued task and receives a random lease token. The claim only moves the task into planning. Starting a high-impact task without an approver label moves it to `awaiting_approval`. A separate `mitra_approve_task` call must supply an approver label; that label is recorded in the task event log and a fresh worker lease is issued. This is an auditable *claim*, not verified human identity: a production host must authenticate the approving user and bind the identity to the approval request before enabling real side-effect adapters.
 
 Workers must retain the lease token to start, verify and finish a task. Expired leases can be recovered; tasks are requeued only while retry budget remains. Idempotency keys prevent duplicate task creation for the same caller-supplied request key. Cancellation revokes the active lease. Retry delays are bounded to one day and attempts are capped at ten.
 
 ## MCP queue tools
 
 - `mitra_claim_task`: atomically claim one queued task for planning.
-- `mitra_start_task`: start a task after risk policy checks; high-impact tasks need an approver label.
+- `mitra_start_task`: start read-only work or place high-impact work into the approval queue.
+- `mitra_approve_task`: record the host-claimed approver label and issue a fresh lease.
 - `mitra_begin_verification` and `mitra_finish_task`: explicit verification/finalization.
 - `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases`.
 - `mitra_task_events`: read the task audit history.
