@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mitra-agent-core"
+version = "0.1.0"
+description = "Cloneable, local-first universal agent capability core with MCP"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "MITRA Contributors" }]
+dependencies = ["mcp[cli]>=2.0.0,<3.0.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+mitra = "mitra.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mitra"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
