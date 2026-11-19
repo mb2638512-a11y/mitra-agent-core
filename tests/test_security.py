@@ -58,3 +58,8 @@ def test_instance_approval_key_is_created_once_and_reused(tmp_path: Path):
     assert key_path.exists()
     if __import__("os").name != "nt":
         assert key_path.stat().st_mode & 0o777 == 0o600
+
+
+def test_malformed_approval_token_fails_closed():
+    with pytest.raises(PermissionError):
+        verify_approval_token("not-a-valid-token", "task-1", "s" * 48)
