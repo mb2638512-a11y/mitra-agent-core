@@ -57,6 +57,7 @@ def mitra_capabilities() -> list[dict]:
         {"id": "browser", "status": "planned", "description": "Policy-bound browser adapter with action approvals."},
         {"id": "plan-contract", "status": "ready", "description": "Validate structured plans and risk-tagged steps."},
         {"id": "guarded-task-lifecycle", "status": "ready", "description": "Validate task-state transitions and approval gates; no workers execute tasks yet."},
+        {"id": "model-provider", "status": "ready_optional", "description": "Optional OpenAI-compatible chat provider; credentials are read from an environment variable."},
         {"id": "planner-executor", "status": "in_progress", "description": "Planning contracts are available; durable worker queue and execution adapters remain future work."},
         {"id": "multi-agent", "status": "planned", "description": "Delegation with per-agent identity and scoped tools."},
     ]
