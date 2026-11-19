@@ -4,10 +4,9 @@ from pathlib import Path
 from mitra.cli import connect_host
 
 
-def test_connect_forwards_local_approval_secret_without_overwriting_other_servers(tmp_path: Path, monkeypatch):
+def test_connect_preserves_other_servers_and_does_not_export_signing_key(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("MITRA_INSTANCE_ID", "test-agent")
     monkeypatch.setenv("MITRA_HOME", str(tmp_path / "data"))
-    monkeypatch.setenv("MITRA_APPROVAL_SECRET", "x" * 48)
     config_path = tmp_path / "mcp.json"
     config_path.write_text(json.dumps({"mcpServers": {"other": {"command": "other"}}}), encoding="utf-8")
 
@@ -17,4 +16,4 @@ def test_connect_forwards_local_approval_secret_without_overwriting_other_server
     mitra = saved["mcpServers"]["mitra"]
     assert mitra["env"]["MITRA_INSTANCE_ID"] == "test-agent"
     assert mitra["env"]["MITRA_HOME"] == str(tmp_path / "data")
-    assert mitra["env"]["MITRA_APPROVAL_SECRET"] == "x" * 48
+    assert "MITRA_APPROVAL_SECRET" not in mitra["env"]
