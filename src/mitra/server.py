@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from mcp.server import MCPServer
 
 from mitra import __version__
@@ -166,15 +168,16 @@ def mitra_claim_task(lease_seconds: int = 60) -> dict:
 
 
 @mcp.tool()
-def mitra_start_task(task_id: str, lease_token: str, approved_by: str = "") -> dict:
-    """Move a claimed task to running; high-impact work records the host-claimed approver label."""
-    return store.start_task(task_id, lease_token, approved_by=approved_by or None)
+def mitra_start_task(task_id: str, lease_token: str) -> dict:
+    """Start a read-only task; elevated-risk tasks are moved to awaiting approval."""
+    return store.start_task(task_id, lease_token)
 
 
 @mcp.tool()
-def mitra_approve_task(task_id: str, approved_by: str, lease_seconds: int = 60) -> dict:
-    """Approve a gated task using a host-claimed approver label and issue a fresh worker lease."""
-    return store.approve_task(task_id, approved_by, lease_seconds=lease_seconds)
+def mitra_approve_task(task_id: str, approval_token: str, lease_seconds: int = 60) -> dict:
+    """Approve a gated task using a signed, task-bound, single-use local approval token."""
+    secret = os.getenv("MITRA_APPROVAL_SECRET", "")
+    return store.approve_task(task_id, approval_token, secret, lease_seconds=lease_seconds)
 
 
 @mcp.tool()
