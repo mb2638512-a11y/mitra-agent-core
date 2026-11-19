@@ -56,6 +56,10 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_check_permission` — inspect default risk policy; does not authorize an external action.
 - `mitra_validate_plan` — validate a structured plan and risk-tagged steps.
 - `mitra_check_transition` — preview a task-state change and approval gate.
+- `mitra_claim_task`, `mitra_start_task` — durable worker claims and risk-gated start.
+- `mitra_begin_verification`, `mitra_finish_task` — explicit task verification/finalization.
+- `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases` — retry, cancellation and crash recovery.
+- `mitra_task_events` — task lifecycle audit history.
 
 ## Optional model provider
 
@@ -83,7 +87,7 @@ Override with `MITRA_HOME`. Do not commit instance data, OAuth tokens or API key
 
 ## Current scope
 
-This is the first foundation, not finished AGI. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls are planned adapter modules. They must be implemented with explicit authorization, scoped credentials, audit trails and tests before being advertised as available.
+This is the first foundation, not finished AGI. The durable queue manages task state but does not execute external actions. Approver labels are host-claimed metadata, not authenticated identity. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls remain planned adapter modules and require authenticated authorization, scoped credentials, audit trails and tests before production use.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution model](docs/EXECUTION_MODEL.md)
