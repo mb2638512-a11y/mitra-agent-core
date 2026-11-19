@@ -117,7 +117,7 @@ def load_or_create_approval_secret(path: Path) -> str:
     else:
         value = secrets.token_urlsafe(48)
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            stream.write(value + "\\n")
+            stream.write(value + "\n")
         try:
             os.chmod(path, 0o600)
         except OSError:
