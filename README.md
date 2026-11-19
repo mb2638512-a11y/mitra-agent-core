@@ -89,6 +89,17 @@ mitra approve-token --task-id TASK_ID --approver "Your local identity"
 Pass the resulting one-time token to `mitra_approve_task`. Tokens are HMAC-signed, bound to the task ID and a SHA-256 fingerprint of its title, details and risk, expire within 30–600 seconds, and their nonce is consumed once in the same SQLite transaction that issues the worker lease. This proves local control of the instance key, not identity through an external identity provider. Protect the operating-system account and instance data directory accordingly.
 
 
+## Verify on Windows
+
+From the repository root in PowerShell, run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\check.ps1
+```
+
+The script creates a local virtual environment, installs the project and development dependencies, runs pytest, then runs Ruff. It does not start external integrations or modify files outside the repository's local workspace.
+
 ## Optional model provider
 
 MITRA includes a stdlib-only OpenAI-compatible chat adapter. It is opt-in and makes no network calls unless application code explicitly calls it. Configure:
