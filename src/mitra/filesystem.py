@@ -6,6 +6,10 @@ a general-purpose filesystem browser and exposes no shell or arbitrary paths.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+
+from mitra.adapters import AdapterContext, AdapterResult
+from mitra.security import RiskLevel
 
 
 class Workspace:
@@ -64,3 +68,35 @@ class Workspace:
         except UnicodeDecodeError as exc:
             raise ValueError("file is not valid UTF-8 text") from exc
         return {"path": target.relative_to(self.root).as_posix(), "size": size, "content": content}
+
+
+
+class FilesystemReadAdapter:
+    """Explicit read-only workspace adapter implementing the shared contract."""
+
+    capability_id = "filesystem-read"
+    risk = RiskLevel.READ
+    operations = frozenset({"list", "read"})
+
+    def execute(
+        self, operation: str, arguments: dict[str, Any], context: AdapterContext
+    ) -> AdapterResult:
+        workspace = Workspace(context.data_dir / "workspace")
+        if operation == "list":
+            path = arguments.get("path", ".")
+            limit = arguments.get("limit", 100)
+            if not isinstance(path, str) or not isinstance(limit, int):
+                raise ValueError("list requires a string path and integer limit")
+            return AdapterResult(
+                self.capability_id, operation, True,
+                data=workspace.list_files(path, limit=limit),
+            )
+        if operation == "read":
+            path = arguments.get("path")
+            if not isinstance(path, str):
+                raise ValueError("read requires a string path")
+            return AdapterResult(
+                self.capability_id, operation, True,
+                data=workspace.read_text(path),
+            )
+        raise ValueError("operation is not supported by filesystem-read")
