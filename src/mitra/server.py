@@ -54,9 +54,11 @@ def mitra_status() -> dict:
             "local_memory": "ready",
             "permission_primitives": "ready",
             "capability_registry": "ready",
-            "external_integrations": "oauth_scaffolding_ready",
+            "supervised_worker": "ready",
             "credential_vault": "ready",
-            "autonomous_execution": "guarded_queue_only",
+            "oauth_pkce": "ready",
+            "external_integrations": "provider_adapters_pending",
+            "autonomous_execution": "allowlisted_local_adapters_only",
         },
     }
 
