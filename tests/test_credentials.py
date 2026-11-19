@@ -66,3 +66,11 @@ def test_credential_vault_delete_removes_record(tmp_path: Path):
     assert vault.delete("google", "account@example.test")
     assert vault.get("google", "account@example.test") is None
     assert not vault.delete("google", "account@example.test")
+
+
+
+def test_pending_oauth_states_are_not_listed_as_connected_accounts(tmp_path: Path):
+    vault = make_vault(tmp_path)
+    vault.put("_oauth_pending", "random-state", {"verifier": "temporary"})
+    vault.put("google", "user@example.test", {"access_token": "encrypted"})
+    assert [item["provider"] for item in vault.list_metadata()] == ["google"]
