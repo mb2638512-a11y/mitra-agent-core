@@ -6,8 +6,10 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import secrets
 import time
+from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
 
@@ -75,3 +77,25 @@ def verify_approval_token(token: str, task_id: str, secret: str) -> dict:
         return payload
     except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise PermissionError("approval token is invalid, expired or not for this task") from exc
+
+
+
+def load_or_create_approval_secret(path: Path) -> str:
+    """Load a per-instance signing key, creating it with owner-only POSIX mode."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        value = path.read_text(encoding="utf-8").strip()
+    else:
+        value = secrets.token_urlsafe(48)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(value + "\\n")
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            # Windows permissions are inherited from the user's private data directory.
+            pass
+    if len(value) < 32:
+        raise RuntimeError("MITRA approval key is missing or too short; inspect the local key file.")
+    return value
