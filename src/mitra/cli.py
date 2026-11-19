@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 from mitra.config import InstanceConfig
+from mitra.security import issue_approval_token
+from mitra.store import Store
 
 
 def init_instance(name: str) -> int:
@@ -28,6 +30,26 @@ def init_instance(name: str) -> int:
         return 0
     profile_path.write_text(json.dumps(profile, indent=2), encoding="utf-8")
     print(f"Initialized {name} ({config.instance_id}) at {config.data_dir}")
+    return 0
+
+
+
+def create_approval_token(task_id: str, approver: str, expires_in: int) -> int:
+    config = InstanceConfig.load()
+    store = Store(config.data_dir / "mitra.sqlite3")
+    task = store.get_task(task_id)
+    if task is None:
+        raise SystemExit("Task not found in this MITRA instance.")
+    if task["status"] != "awaiting_approval":
+        raise SystemExit("Only tasks awaiting approval can receive an approval token.")
+    secret = os.getenv("MITRA_APPROVAL_SECRET", "")
+    try:
+        token = issue_approval_token(task_id, approver, secret, expires_in=expires_in)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    print("One-time approval token (share only with this MITRA instance):")
+    print(token)
+    print(f"Expires in {expires_in} seconds. Keep MITRA_APPROVAL_SECRET private.")
     return 0
 
 
@@ -84,6 +106,10 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command")
     init = sub.add_parser("init", help="initialize this agent's isolated profile")
     init.add_argument("--name", default="My MITRA Agent")
+    approval = sub.add_parser("approve-token", help="issue a short-lived local approval token")
+    approval.add_argument("--task-id", required=True)
+    approval.add_argument("--approver", required=True)
+    approval.add_argument("--expires-in", type=int, default=300)
     sub.add_parser("serve", help="start the MCP server over stdio")
     sub.add_parser("serve-http", help="start an opt-in local Streamable HTTP MCP server")
     connect = sub.add_parser("connect", help="add MITRA to a supported host MCP config")
@@ -95,6 +121,8 @@ def main() -> None:
         raise SystemExit(init_instance(args.name))
     if args.command == "connect":
         raise SystemExit(connect_host(args.host, args.config))
+    if args.command == "approve-token":
+        raise SystemExit(create_approval_token(args.task_id, args.approver, args.expires_in))
     if args.command == "serve":
         from mitra.server import mcp
         mcp.run()
