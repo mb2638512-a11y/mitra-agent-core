@@ -53,6 +53,7 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_fs_list`, `mitra_fs_read` — list and read files inside the instance workspace.
 - `mitra_execute_workspace_write` — perform a task-bound, approved text write inside the workspace.
 - `mitra_execution_receipts` — inspect durable, idempotent operation receipts.
+- `mitra_model_status` — inspect configured model providers and fallback routes without exposing credentials.
 - `mitra_capabilities`, `mitra_get_capability` — machine-readable registry, status, risk and required scopes.
 - `mitra_adapter_status` — inspect the explicit adapters registered in this MITRA process.
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
@@ -89,6 +90,22 @@ mitra approve-token --task-id TASK_ID --approver "Your local identity"
 
 Pass the resulting one-time token to `mitra_approve_task`. Tokens are HMAC-signed, bound to the task ID and a SHA-256 fingerprint of its title, details and risk, expire within 30–600 seconds, and their nonce is consumed once in the same SQLite transaction that issues the worker lease. This proves local control of the instance key, not identity through an external identity provider. Protect the operating-system account and instance data directory accordingly.
 
+
+## Supervised worker
+
+Run one task:
+
+```bash
+mitra worker --once
+```
+
+Run continuously with a 2-second idle poll:
+
+```bash
+mitra worker --poll-seconds 2
+```
+
+Stop after 10 non-idle results with `--max-tasks 10`. The worker handles only workspace read/list and approved text-write intents; write tasks remain pending until a valid local approval token is consumed. It never runs shell commands or arbitrary code.
 
 ## Verify on Windows
 
@@ -133,7 +150,7 @@ Override with `MITRA_HOME`. Do not commit instance data, OAuth tokens or API key
 
 ## Current scope
 
-This is the first foundation, not finished AGI. The durable queue manages task state; the only side-effecting adapter currently enabled is the approved, receipt-tracked text write inside the instance workspace. External services and OS-level commands are not executed. Gated task approval now requires a short-lived HMAC token bound to the task and a single-use nonce. This proves possession of the local approval secret, not identity through an external identity provider. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation and enterprise controls remain planned adapter modules and require scoped credentials, audit trails and tests before production use.
+This is the first foundation, not finished AGI. The supervised local worker can process explicitly declared workspace read/list tasks and approved text writes. It uses atomic worker claims, adapter allowlists and durable receipts; unsupported task types are retried within their bounded budget. External services and OS-level commands are not executed. Gated task approval now requires a short-lived HMAC token bound to the task and a single-use nonce. This proves possession of the local approval secret, not identity through an external identity provider. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation and enterprise controls remain planned adapter modules and require scoped credentials, audit trails and tests before production use.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution model](docs/EXECUTION_MODEL.md)
