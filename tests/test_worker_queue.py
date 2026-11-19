@@ -30,8 +30,9 @@ def test_high_impact_task_waits_for_explicit_approval(tmp_path: Path):
     claimed = store.claim_task()
     gated = store.start_task(task["id"], claimed["lease_token"])
     assert gated["status"] == "awaiting_approval"
-    approved = store.start_task(task["id"], claimed["lease_token"], approved=True)
+    approved = store.start_task(task["id"], claimed["lease_token"], approved_by="local-host-user")
     assert approved["status"] == "running"
+    assert store.task_events(task["id"])[0]["event"] == "approved_and_started"
 
 
 def test_idempotency_key_prevents_duplicate_task(tmp_path: Path):
