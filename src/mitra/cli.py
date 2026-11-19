@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from mitra.config import InstanceConfig
-from mitra.security import issue_approval_token, load_or_create_approval_secret
+from mitra.security import approval_fingerprint, issue_approval_token, load_or_create_approval_secret
 from mitra.store import Store
 
 
@@ -44,7 +44,7 @@ def create_approval_token(task_id: str, approver: str, expires_in: int) -> int:
         raise SystemExit("Only tasks awaiting approval can receive an approval token.")
     secret = load_or_create_approval_secret(config.data_dir / "approval.key")
     try:
-        token = issue_approval_token(task_id, approver, secret, expires_in=expires_in)
+        token = issue_approval_token(task_id, approver, secret, intent_fingerprint=approval_fingerprint(task), expires_in=expires_in)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     print("One-time approval token (share only with this MITRA instance):")
