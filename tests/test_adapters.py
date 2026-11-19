@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from mitra.adapters import AdapterContext, AdapterRegistry, authorize_adapter_execution
-from mitra.filesystem import FilesystemReadAdapter
+from mitra.filesystem import FilesystemReadAdapter, FilesystemWriteAdapter
 from mitra.store import Store
 from mitra.security import RiskLevel
 
@@ -89,3 +89,19 @@ def test_execution_permit_rejects_task_risk_below_adapter_risk(tmp_path: Path):
             lease_token=running["lease_token"],
             capability_id="filesystem-read", operation="read",
         )
+
+
+
+def test_write_adapter_is_separate_and_confined_to_workspace(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    adapter = FilesystemWriteAdapter()
+    context = AdapterContext("test", tmp_path)
+    result = adapter.execute(
+        "write", {"path": "hello.txt", "content": "approved"},
+        context,
+    )
+    assert result.success
+    assert (workspace / "hello.txt").read_text(encoding="utf-8") == "approved"
+    with pytest.raises(ValueError, match="not supported"):
+        adapter.execute("delete", {"path": "hello.txt"}, context)
