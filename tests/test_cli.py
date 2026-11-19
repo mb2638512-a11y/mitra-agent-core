@@ -23,7 +23,7 @@ def test_connect_preserves_other_servers_and_does_not_export_signing_key(tmp_pat
 def test_universal_setup_prints_generic_mcp_config(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setenv("MITRA_INSTANCE_ID", "universal-agent")
     monkeypatch.setenv("MITRA_HOME", str(tmp_path / "instances"))
-    assert universal_setup("Universal Agent") == 0
+    assert universal_setup("Universal Agent", instance_id="universal-agent") == 0
     output = capsys.readouterr().out
     config_text = output.split("Universal MCP client configuration (JSON):", 1)[1]
     config = json.loads(config_text.split("\n\nPaste this", 1)[0])
@@ -41,7 +41,7 @@ def test_universal_setup_can_initialize_and_merge_config_in_one_command(tmp_path
     config_path = tmp_path / "host" / "mcp.json"
     config_path.parent.mkdir()
     config_path.write_text(json.dumps({"other": True}), encoding="utf-8")
-    assert universal_setup("One Command Agent", str(config_path)) == 0
+    assert universal_setup("One Command Agent", str(config_path), "one-command-agent") == 0
     saved = json.loads(config_path.read_text(encoding="utf-8"))
     assert saved["other"] is True
     assert saved["mcpServers"]["mitra"]["env"]["MITRA_DISPLAY_NAME"] == "One Command Agent"
