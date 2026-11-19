@@ -17,14 +17,14 @@ TRANSITIONS = {
 }
 
 
-def validate_transition(current: str, target: str, *, approved: bool = False,
+def validate_transition(current: str, target: str, *,
                         risk: RiskLevel = RiskLevel.READ) -> None:
     if current not in TASK_STATES or target not in TASK_STATES:
         raise ValueError("unknown task state")
     if target not in TRANSITIONS[current]:
         raise ValueError(f"invalid task transition: {current} -> {target}")
-    if current == "awaiting_approval" and target == "running" and not approved:
-        raise PermissionError("explicit approval is required before execution")
-    decision = evaluate_action(risk, approved=approved)
+    if current == "awaiting_approval" and target == "running":
+        raise PermissionError("approval must be verified and consumed through mitra_approve_task")
+    decision = evaluate_action(risk)
     if target == "running" and not decision.allowed:
         raise PermissionError(decision.reason)
