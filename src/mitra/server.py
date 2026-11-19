@@ -10,7 +10,7 @@ from mitra import __version__
 from mitra.config import InstanceConfig
 from mitra.security import RiskLevel, evaluate_action, load_or_create_approval_secret
 from mitra.planner import TaskPlan, draft_plan
-from mitra.providers import configured_provider
+from mitra.providers import configured_router
 from mitra.engine import validate_transition
 from mitra.store import Store
 from mitra.registry import get_capability, list_capabilities
@@ -157,15 +157,24 @@ def mitra_execute_workspace_write(task_id: str, lease_token: str, idempotency_ke
 
 
 @mcp.tool()
-def mitra_draft_plan(objective: str) -> dict:
-    """Draft a structured plan with the configured optional model; never executes it."""
-    provider = configured_provider()
+def mitra_model_status() -> dict:
+    """Show configured model IDs and routing policy without exposing credentials."""
+    router = configured_router()
+    if router is None:
+        return {"configured": False, "providers": [], "routes": {}}
+    return {"configured": True, **router.status()}
+
+
+@mcp.tool()
+def mitra_draft_plan(objective: str, route: str = "planning") -> dict:
+    """Draft a structured plan with a configured model route; never executes it."""
+    provider = configured_router()
     if provider is None:
         raise RuntimeError(
             "No model provider configured. Set MITRA_MODEL_BASE_URL and MITRA_MODEL_NAME, "
             "then set the API key in the configured environment variable."
         )
-    return draft_plan(provider, objective)
+    return draft_plan(provider, objective, route=route)
 
 
 @mcp.tool()
