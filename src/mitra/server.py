@@ -13,9 +13,8 @@ from mitra.store import Store
 from mitra.registry import get_capability, list_capabilities
 from mitra.filesystem import Workspace
 
-workspace = Workspace(config.data_dir / "workspace")
-
 config = InstanceConfig.load()
+workspace = Workspace(config.data_dir / "workspace")
 store = Store(config.data_dir / "mitra.sqlite3")
 mcp = MCPServer(
     "MITRA",
