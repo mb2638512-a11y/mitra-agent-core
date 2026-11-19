@@ -146,5 +146,61 @@ def mitra_search_memory(query: str, limit: int = 10) -> list[dict]:
     return store.search_memory(query.strip(), limit)
 
 
+@mcp.tool()
+def mitra_claim_task(lease_seconds: int = 60) -> dict:
+    """Claim one queued task for planning. This does not execute its actions."""
+    task = store.claim_task(lease_seconds=lease_seconds)
+    return task or {"claimed": False, "reason": "no eligible queued task"}
+
+
+@mcp.tool()
+def mitra_start_task(task_id: str, lease_token: str, approved: bool = False) -> dict:
+    """Move a claimed task to running only when its risk policy permits it."""
+    return store.start_task(task_id, lease_token, approved=approved)
+
+
+@mcp.tool()
+def mitra_begin_verification(task_id: str, lease_token: str) -> dict:
+    """Mark a running task as ready for independent result verification."""
+    return store.begin_verification(task_id, lease_token)
+
+
+@mcp.tool()
+def mitra_finish_task(task_id: str, lease_token: str, success: bool, detail: str = "") -> dict:
+    """Finalize a verifying task with an explicit success/failure result."""
+    if len(detail) > 2000:
+        raise ValueError("detail must be at most 2000 characters")
+    return store.finish_task(task_id, lease_token, success=success, detail=detail)
+
+
+@mcp.tool()
+def mitra_retry_task(task_id: str, delay_seconds: int = 30, reason: str = "") -> dict:
+    """Schedule a controlled retry for an active task; no action is executed here."""
+    return store.retry_task(task_id, delay_seconds=delay_seconds, reason=reason)
+
+
+@mcp.tool()
+def mitra_cancel_task(task_id: str) -> dict:
+    """Cancel a non-terminal task and revoke its worker lease."""
+    return store.cancel_task(task_id)
+
+
+@mcp.tool()
+def mitra_recover_expired_leases() -> dict:
+    """Recover tasks whose worker lease expired after a crash or disconnect."""
+    return {"recovered": store.recover_expired_leases()}
+
+
+@mcp.tool()
+def mitra_task_events(task_id: str, limit: int = 50) -> list[dict]:
+    """Return the audit events for one task."""
+    if not 1 <= limit <= 200:
+        raise ValueError("limit must be between 1 and 200")
+    if store.get_task(task_id) is None:
+        raise ValueError("Task not found")
+    return store.task_events(task_id, limit)
+
+
+
 if __name__ == "__main__":
     mcp.run()
