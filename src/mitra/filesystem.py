@@ -5,6 +5,8 @@ a general-purpose filesystem browser and exposes no shell or arbitrary paths.
 """
 from __future__ import annotations
 
+import hashlib
+import os
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +58,33 @@ class Workspace:
                 break
         return entries
 
+    def write_text(self, relative_path: str, content: str) -> dict:
+        if not isinstance(content, str):
+            raise ValueError("content must be text")
+        payload = content.encode("utf-8")
+        if len(payload) > 1_000_000:
+            raise ValueError("content exceeds the 1000000-byte write limit")
+        target = self._resolve(relative_path)
+        if not target.parent.is_dir():
+            raise ValueError("parent directory must already exist")
+        flags = os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
+        if target.exists():
+            if not target.is_file():
+                raise ValueError("target must be a regular file")
+            flags |= os.O_TRUNC
+        else:
+            flags |= os.O_CREAT | os.O_EXCL
+        descriptor = os.open(target, flags, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        return {
+            "path": target.relative_to(self.root).as_posix(),
+            "bytes_written": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+
     def read_text(self, relative_path: str) -> dict:
         target = self._resolve(relative_path)
         if not target.is_file():
@@ -100,3 +129,27 @@ class FilesystemReadAdapter:
                 data=workspace.read_text(path),
             )
         raise ValueError("operation is not supported by filesystem-read")
+
+
+
+class FilesystemWriteAdapter:
+    """Write text only inside the instance workspace; never exposes OS paths."""
+
+    capability_id = "filesystem-write"
+    risk = RiskLevel.WRITE
+    operations = frozenset({"write"})
+
+    def execute(
+        self, operation: str, arguments: dict[str, Any], context: AdapterContext
+    ) -> AdapterResult:
+        if operation != "write":
+            raise ValueError("operation is not supported by filesystem-write")
+        path = arguments.get("path")
+        content = arguments.get("content")
+        if not isinstance(path, str) or not isinstance(content, str):
+            raise ValueError("write requires string path and content")
+        workspace = Workspace(context.data_dir / "workspace")
+        return AdapterResult(
+            self.capability_id, operation, True,
+            data=workspace.write_text(path, content),
+        )
