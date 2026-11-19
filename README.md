@@ -70,7 +70,7 @@ Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects
 
 ## Capability registry
 
-MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed.
+MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed. A typed adapter contract and explicit in-process allowlist now exist; the filesystem read adapter is the first registered implementation. Adapters are not auto-discovered or invoked by the task queue.
 
 ## Authenticated local approvals
 
@@ -83,7 +83,7 @@ When a task reaches `awaiting_approval`, the local user issues a short-lived tok
 mitra approve-token --task-id TASK_ID --approver "Your local identity"
 ```
 
-Pass the resulting one-time token to `mitra_approve_task`. Tokens are HMAC-signed, bound to one task, expire within 30–600 seconds, and their nonce is consumed once in SQLite. This proves local control of the instance key, not identity through an external identity provider. Protect the operating-system account and instance data directory accordingly.
+Pass the resulting one-time token to `mitra_approve_task`. Tokens are HMAC-signed, bound to the task ID and a SHA-256 fingerprint of its title, details and risk, expire within 30–600 seconds, and their nonce is consumed once in the same SQLite transaction that issues the worker lease. This proves local control of the instance key, not identity through an external identity provider. Protect the operating-system account and instance data directory accordingly.
 
 
 ## Optional model provider
