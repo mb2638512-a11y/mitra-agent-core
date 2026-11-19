@@ -75,3 +75,15 @@ def test_workspace_rejects_symlinked_root(tmp_path: Path):
     linked.symlink_to(outside, target_is_directory=True)
     with pytest.raises(PermissionError, match="root"):
         Workspace(linked)
+
+
+
+def test_workspace_write_rejects_hard_linked_target(tmp_path: Path):
+    workspace = Workspace(tmp_path / "workspace")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("protected", encoding="utf-8")
+    linked = workspace.root / "linked.txt"
+    linked.hardlink_to(outside)
+    with pytest.raises(PermissionError, match="hard-linked"):
+        workspace.write_text("linked.txt", "changed")
+    assert outside.read_text(encoding="utf-8") == "protected"
