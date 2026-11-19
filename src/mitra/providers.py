@@ -85,3 +85,95 @@ def configured_provider() -> OpenAICompatibleProvider | None:
     if not base_url or not model:
         return None
     return OpenAICompatibleProvider(base_url=base_url, model=model, api_key_env=key_env)
+
+
+
+class ModelRouter:
+    """Explicit, deterministic model routing with configured fallback chains."""
+
+    def __init__(
+        self,
+        providers: dict[str, ModelProvider],
+        *,
+        default_provider: str,
+        routes: dict[str, list[str]] | None = None,
+    ):
+        if not providers or default_provider not in providers:
+            raise ValueError("default provider must exist in the provider registry")
+        if any(not key or len(key) > 64 for key in providers):
+            raise ValueError("provider IDs must contain 1-64 characters")
+        self.providers = dict(providers)
+        self.default_provider = default_provider
+        self.routes = dict(routes or {})
+        for route, chain in self.routes.items():
+            if not route or not isinstance(chain, list) or not chain:
+                raise ValueError("each route must have a non-empty provider chain")
+            if len(set(chain)) != len(chain) or any(item not in self.providers for item in chain):
+                raise ValueError("route contains duplicate or unknown provider IDs")
+
+    def chain_for(self, route: str | None = None) -> list[str]:
+        if route is None:
+            return [self.default_provider]
+        if not isinstance(route, str) or not route.strip():
+            raise ValueError("route name must be non-empty text")
+        return list(self.routes.get(route, [self.default_provider]))
+
+    def complete(self, messages: list[ChatMessage], route: str | None = None) -> ModelReply:
+        errors = []
+        for provider_id in self.chain_for(route):
+            try:
+                return self.providers[provider_id].complete(messages)
+            except Exception as exc:
+                # Surface only exception class and provider ID; provider errors may contain secrets.
+                errors.append(f"{provider_id}:{type(exc).__name__}")
+        raise RuntimeError("all configured model providers failed (" + ", ".join(errors) + ")")
+
+    def status(self) -> dict:
+        return {
+            "default_provider": self.default_provider,
+            "providers": sorted(self.providers),
+            "routes": {key: list(value) for key, value in self.routes.items()},
+        }
+
+
+def configured_router() -> ModelRouter | None:
+    """Load provider metadata from env; API keys remain in their named env variables.
+
+    MITRA_MODEL_PROVIDERS is a JSON array of objects containing id, base_url, model
+    and api_key_env. MITRA_MODEL_ROUTES is an optional JSON object mapping route
+    names to ordered provider-ID fallback lists.
+    """
+    raw = os.getenv("MITRA_MODEL_PROVIDERS")
+    if raw:
+        try:
+            items = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError("MITRA_MODEL_PROVIDERS must be valid JSON") from exc
+        if not isinstance(items, list) or not items:
+            raise ValueError("MITRA_MODEL_PROVIDERS must be a non-empty JSON array")
+        providers: dict[str, ModelProvider] = {}
+        for item in items:
+            if not isinstance(item, dict) or set(item) != {"id", "base_url", "model", "api_key_env"}:
+                raise ValueError("each model provider needs exactly id, base_url, model and api_key_env")
+            provider_id = item["id"]
+            if not isinstance(provider_id, str) or not provider_id or provider_id in providers:
+                raise ValueError("model provider IDs must be unique non-empty strings")
+            providers[provider_id] = OpenAICompatibleProvider(
+                base_url=item["base_url"], model=item["model"], api_key_env=item["api_key_env"]
+            )
+        default_id = os.getenv("MITRA_MODEL_DEFAULT", next(iter(providers)))
+        try:
+            routes = json.loads(os.getenv("MITRA_MODEL_ROUTES", "{}"))
+        except json.JSONDecodeError as exc:
+            raise ValueError("MITRA_MODEL_ROUTES must be valid JSON") from exc
+        if not isinstance(routes, dict) or any(
+            not isinstance(key, str) or not isinstance(value, list) for key, value in routes.items()
+        ):
+            raise ValueError("MITRA_MODEL_ROUTES must map route names to provider-ID arrays")
+        return ModelRouter(providers, default_provider=default_id, routes=routes)
+
+    # Backward-compatible single-provider environment configuration.
+    provider = configured_provider()
+    if provider is None:
+        return None
+    return ModelRouter({"default": provider}, default_provider="default")
