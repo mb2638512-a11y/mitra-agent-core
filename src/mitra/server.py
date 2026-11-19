@@ -7,6 +7,8 @@ from mcp.server import MCPServer
 from mitra import __version__
 from mitra.config import InstanceConfig
 from mitra.security import RiskLevel, evaluate_action
+from mitra.planner import TaskPlan
+from mitra.engine import validate_transition
 from mitra.store import Store
 
 config = InstanceConfig.load()
@@ -53,10 +55,30 @@ def mitra_capabilities() -> list[dict]:
         {"id": "permission-primitives", "status": "ready", "description": "Read-only allowed; high-impact actions default-denied."},
         {"id": "gmail", "status": "planned", "description": "OAuth-based Gmail adapter; user authorization required."},
         {"id": "browser", "status": "planned", "description": "Policy-bound browser adapter with action approvals."},
-        {"id": "planner-executor", "status": "planned", "description": "Model-backed planning and auditable execution queue."},
+        {"id": "plan-contract", "status": "ready", "description": "Validate structured plans and risk-tagged steps."},
+        {"id": "guarded-task-lifecycle", "status": "ready", "description": "Validate task-state transitions and approval gates; no workers execute tasks yet."},
+        {"id": "planner-executor", "status": "in_progress", "description": "Planning contracts are available; durable worker queue and execution adapters remain future work."},
         {"id": "multi-agent", "status": "planned", "description": "Delegation with per-agent identity and scoped tools."},
     ]
 
+
+@mcp.tool()
+def mitra_validate_plan(plan: dict) -> dict:
+    """Validate a proposed plan and return normalized steps with approval requirements."""
+    return TaskPlan.from_dict(plan).to_dict()
+
+
+@mcp.tool()
+def mitra_check_transition(current: str, target: str, risk: str = "read", approved: bool = False) -> dict:
+    """Preview a task-state transition. This checks policy but does not execute work."""
+    try:
+        level = RiskLevel(risk)
+        validate_transition(current, target, approved=approved, risk=level)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    except PermissionError as exc:
+        return {"valid": False, "current": current, "target": target, "reason": str(exc)}
+    return {"valid": True, "current": current, "target": target, "risk": level.value, "approved": approved}
 
 @mcp.tool()
 def mitra_check_permission(risk: str) -> dict:
