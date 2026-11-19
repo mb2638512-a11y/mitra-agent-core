@@ -56,7 +56,7 @@ No credentials or personal memory are shared between clones by default. A user c
 | Browser automation | Planned |
 | Filesystem write adapter | Implemented for approved workspace text writes with durable receipts |
 | General background executor | Planned (only approved workspace write tool currently executes a side effect) |
-| Model routing / planner | Planned |
+| Optional model-powered plan drafting | Implemented; strict JSON and ready-adapter validation, no auto-execution |
 | Agent-to-agent federation | Planned |
 | Enterprise multi-tenant controls | Planned |
 
