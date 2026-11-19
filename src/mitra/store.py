@@ -63,6 +63,9 @@ class Store:
                 id TEXT PRIMARY KEY, content TEXT NOT NULL, tags TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )""")
+            db.execute("""CREATE TABLE IF NOT EXISTS used_approval_nonces (
+                nonce TEXT PRIMARY KEY, task_id TEXT NOT NULL, used_at TEXT NOT NULL
+            )""")
             db.execute("""CREATE TABLE IF NOT EXISTS task_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL,
                 event TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL,
@@ -140,20 +143,17 @@ class Store:
             claimed = db.execute("SELECT * FROM tasks WHERE id=?", (row["id"],)).fetchone()
         return dict(claimed) if claimed else None
 
-    def start_task(self, task_id: str, lease_token: str, *, approved_by: str | None = None) -> dict[str, Any]:
+    def start_task(self, task_id: str, lease_token: str) -> dict[str, Any]:
+        """Start read-only tasks; all elevated-risk tasks are moved to approval."""
         from mitra.security import RiskLevel, evaluate_action
 
         with self._connection() as db:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 raise ValueError("Task not found")
-            if row["status"] not in {"planning", "awaiting_approval"} or row["lease_token"] != lease_token:
-                raise PermissionError("valid active worker lease is required")
-            if approved_by is not None:
-                approved_by = approved_by.strip()
-                if not approved_by or len(approved_by) > 200:
-                    raise ValueError("approved_by must contain 1-200 characters")
-            decision = evaluate_action(RiskLevel(row["risk"]), approved=bool(approved_by))
+            if row["status"] != "planning" or row["lease_token"] != lease_token:
+                raise PermissionError("valid active planning lease is required")
+            decision = evaluate_action(RiskLevel(row["risk"]))
             if not decision.allowed:
                 db.execute(
                     "UPDATE tasks SET status='awaiting_approval', lease_token=NULL, lease_until=NULL, updated_at=? WHERE id=?",
@@ -162,33 +162,40 @@ class Store:
                 self._event(db, task_id, "approval_required", decision.reason)
                 return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
             db.execute("UPDATE tasks SET status='running', updated_at=? WHERE id=?", (utc_now(), task_id))
-            self._event(db, task_id, "approved_and_started" if approved_by else "started", f"claimed_approver={approved_by}" if approved_by else "")
-            result = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
-        return dict(result)
+            self._event(db, task_id, "started")
+            return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
 
-    def approve_task(self, task_id: str, approved_by: str, *, lease_seconds: int = 60) -> dict[str, Any]:
-        """Record a host-claimed approval and issue a fresh worker lease."""
-        approved_by = approved_by.strip()
-        if not approved_by or len(approved_by) > 200:
-            raise ValueError("approved_by must contain 1-200 characters")
+    def approve_task(self, task_id: str, approval_token: str, secret: str, *, lease_seconds: int = 60) -> dict[str, Any]:
+        """Consume a signed, task-bound, single-use approval token and issue a worker lease."""
+        from mitra.security import verify_approval_token
+
         if not 5 <= lease_seconds <= 3600:
             raise ValueError("lease_seconds must be between 5 and 3600")
+        claims = verify_approval_token(approval_token, task_id, secret)
         now = datetime.now(timezone.utc)
-        token = str(uuid.uuid4())
+        now_text = now.isoformat()
+        worker_token = str(uuid.uuid4())
         with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 raise ValueError("Task not found")
             if row["status"] != "awaiting_approval":
                 raise ValueError("task is not awaiting approval")
+            try:
+                db.execute(
+                    "INSERT INTO used_approval_nonces(nonce, task_id, used_at) VALUES (?, ?, ?)",
+                    (claims["nonce"], task_id, now_text),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise PermissionError("approval token has already been used") from exc
             db.execute(
                 """UPDATE tasks SET status='running', lease_token=?, lease_until=?,
                 updated_at=? WHERE id=?""",
-                (token, (now + timedelta(seconds=lease_seconds)).isoformat(), now.isoformat(), task_id),
+                (worker_token, (now + timedelta(seconds=lease_seconds)).isoformat(), now_text, task_id),
             )
-            self._event(db, task_id, "approved_and_started", f"claimed_approver={approved_by}")
-            result = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
-        return dict(result)
+            self._event(db, task_id, "approved_and_started", f"verified_approver={claims['approver']}")
+            return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
 
     def renew_lease(self, task_id: str, lease_token: str, *, lease_seconds: int = 60) -> dict[str, Any]:
         """Renew an unexpired worker lease using its secret token."""
