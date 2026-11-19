@@ -162,6 +162,12 @@ def mitra_start_task(task_id: str, lease_token: str, approved_by: str = "") -> d
 
 
 @mcp.tool()
+def mitra_approve_task(task_id: str, approved_by: str, lease_seconds: int = 60) -> dict:
+    """Approve a gated task using a host-claimed approver label and issue a fresh worker lease."""
+    return store.approve_task(task_id, approved_by, lease_seconds=lease_seconds)
+
+
+@mcp.tool()
 def mitra_begin_verification(task_id: str, lease_token: str) -> dict:
     """Mark a running task as ready for independent result verification."""
     return store.begin_verification(task_id, lease_token)
