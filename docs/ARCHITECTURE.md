@@ -47,10 +47,13 @@ No credentials or personal memory are shared between clones by default. A user c
 | SQLite task ledger | Implemented |
 | Local keyword memory | Implemented |
 | Permission primitives | Implemented |
+| Capability registry and risk metadata | Implemented |
+| Plan-to-capability validation | Implemented |
+| Durable task queue, leases and audit events | Implemented |
 | OAuth credential vault | Planned |
 | Gmail / calendar / drive adapters | Planned |
 | Browser automation | Planned |
-| Durable background executor | Planned |
+| Durable background executor | Planned (queue exists; no capability runner) |
 | Model routing / planner | Planned |
 | Agent-to-agent federation | Planned |
 | Enterprise multi-tenant controls | Planned |
