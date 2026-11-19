@@ -1,7 +1,7 @@
-"""Read-only filesystem adapter confined to an instance workspace.
+"""Filesystem adapters confined to one instance workspace.
 
-The adapter deliberately rejects symlinks rather than following them. It is not
-a general-purpose filesystem browser and exposes no shell or arbitrary paths.
+They reject symlinks and hard-linked write targets. This is not a general-purpose
+filesystem browser and exposes no shell or arbitrary operating-system paths.
 """
 from __future__ import annotations
 
@@ -77,6 +77,8 @@ class Workspace:
         if target.exists():
             if not target.is_file():
                 raise ValueError("target must be a regular file")
+            if target.stat().st_nlink > 1:
+                raise PermissionError("hard-linked files cannot be modified")
             flags |= os.O_TRUNC
         else:
             flags |= os.O_CREAT | os.O_EXCL
