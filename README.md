@@ -101,17 +101,23 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 The script creates a local virtual environment, installs the project and development dependencies, runs pytest, then runs Ruff. It does not start external integrations or modify files outside the repository's local workspace.
 
-## Optional model provider
+## Model routing
 
-MITRA includes a stdlib-only OpenAI-compatible chat adapter. It is opt-in and makes no network calls unless application code explicitly calls it. Configure:
+MITRA supports one or multiple OpenAI-compatible providers. API secrets stay in environment variables; provider metadata stores only endpoint, model ID and the name of the environment variable holding each secret.
 
-```text
-MITRA_MODEL_BASE_URL=https://api.example.com/v1
-MITRA_MODEL_NAME=your-model-name
-MITRA_MODEL_API_KEY_ENV=MITRA_MODEL_API_KEY
+For one provider, set `MITRA_MODEL_BASE_URL`, `MITRA_MODEL_NAME` and optionally `MITRA_MODEL_API_KEY_ENV`.
+
+For multiple providers, set `MITRA_MODEL_PROVIDERS` to a JSON array, `MITRA_MODEL_DEFAULT` to the default provider ID, and optionally `MITRA_MODEL_ROUTES` to named ordered fallback chains:
+
+```bash
+MITRA_MODEL_PROVIDERS='[{"id":"local","base_url":"http://127.0.0.1:11434/v1","model":"local-model","api_key_env":"LOCAL_MODEL_KEY"},{"id":"cloud","base_url":"https://api.example.com/v1","model":"cloud-model","api_key_env":"CLOUD_MODEL_KEY"}]'
+MITRA_MODEL_DEFAULT=local
+MITRA_MODEL_ROUTES='{"planning":["local","cloud"],"reasoning":["cloud","local"]}'
 ```
 
-Set the actual `MITRA_MODEL_API_KEY` secret in the process environment or an OS secret manager. Never put a real key in `.env.example`, source control, task plans or memory. The MCP tool `mitra_draft_plan` uses this provider to propose JSON plans and validates every proposed capability against the ready adapter registry. Model output never executes automatically; write steps still require a task and signed local approval.
+Use `mitra_model_status` to inspect provider IDs and routes without exposing credentials. `mitra_draft_plan` accepts a route name such as `planning`. If a provider fails, MITRA tries the next provider in that route's fallback chain. Errors are redacted to provider ID and exception type.
+
+Model output remains untrusted: it can propose a plan but cannot register tools, approve tasks or execute actions. See `.env.example` for configuration.
 
 ## Instance data
 
@@ -127,7 +133,7 @@ Override with `MITRA_HOME`. Do not commit instance data, OAuth tokens or API key
 
 ## Current scope
 
-This is the first foundation, not finished AGI. The durable queue manages task state; the only side-effecting adapter currently enabled is the approved, receipt-tracked text write inside the instance workspace. External services and OS-level commands are not executed. Gated task approval now requires a short-lived HMAC token bound to the task and a single-use nonce. This proves possession of the local approval secret, not identity through an external identity provider. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls remain planned adapter modules and require scoped credentials, audit trails and tests before production use.
+This is the first foundation, not finished AGI. The durable queue manages task state; the only side-effecting adapter currently enabled is the approved, receipt-tracked text write inside the instance workspace. External services and OS-level commands are not executed. Gated task approval now requires a short-lived HMAC token bound to the task and a single-use nonce. This proves possession of the local approval secret, not identity through an external identity provider. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation and enterprise controls remain planned adapter modules and require scoped credentials, audit trails and tests before production use.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution model](docs/EXECUTION_MODEL.md)
