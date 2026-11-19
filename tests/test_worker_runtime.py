@@ -95,3 +95,19 @@ def test_approved_running_task_can_only_be_claimed_by_one_worker(tmp_path: Path)
     assert first is not None
     assert first["id"] == task["id"]
     assert second is None
+
+
+
+def test_worker_retries_unsupported_capability_without_crashing(tmp_path: Path):
+    worker, store = make_worker(tmp_path)
+    task = store.create_task(
+        "Send email",
+        details=json.dumps({
+            "capability": "gmail", "operation": "send", "path": "unused"
+        }),
+        risk="external",
+    )
+    result = worker.run_once()
+    assert result["status"] == "retry_or_failed"
+    assert "no supervised worker handler" in result["error"]
+    assert store.get_task(task["id"])["status"] == "queued"
