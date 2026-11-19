@@ -7,6 +7,7 @@ from mitra.security import (
     evaluate_action,
     issue_approval_token,
     verify_approval_token,
+    load_or_create_approval_secret,
 )
 
 
@@ -46,3 +47,14 @@ def test_token_configuration_and_lifetime_are_bounded():
         issue_approval_token("task-1", "user", "short")
     with pytest.raises(ValueError):
         issue_approval_token("task-1", "user", "s" * 48, expires_in=9999)
+
+
+def test_instance_approval_key_is_created_once_and_reused(tmp_path: Path):
+    key_path = tmp_path / "private" / "approval.key"
+    first = load_or_create_approval_secret(key_path)
+    second = load_or_create_approval_secret(key_path)
+    assert len(first) >= 32
+    assert second == first
+    assert key_path.exists()
+    if __import__("os").name != "nt":
+        assert key_path.stat().st_mode & 0o777 == 0o600
