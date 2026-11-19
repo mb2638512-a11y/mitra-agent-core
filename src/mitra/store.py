@@ -181,12 +181,17 @@ class Store:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 raise ValueError("Task not found")
-            if row["status"] != "awaiting_approval":
-                raise ValueError("task is not awaiting approval")
             claims = verify_approval_token(
                 approval_token, task_id, secret,
                 intent_fingerprint=approval_fingerprint(dict(row)),
             )
+            used = db.execute(
+                "SELECT 1 FROM used_approval_nonces WHERE nonce=?", (claims["nonce"],)
+            ).fetchone()
+            if used:
+                raise PermissionError("approval token has already been used")
+            if row["status"] != "awaiting_approval":
+                raise ValueError("task is not awaiting approval")
             try:
                 db.execute(
                     "INSERT INTO used_approval_nonces(nonce, task_id, used_at) VALUES (?, ?, ?)",
