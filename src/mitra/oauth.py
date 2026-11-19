@@ -17,6 +17,8 @@ from mitra.credentials import CredentialVault
 
 def _validate_endpoint(value: str, label: str) -> None:
     parsed = urllib.parse.urlparse(value)
+    if not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+        raise ValueError(f"{label} must have a host and must not contain credentials or fragments")
     if parsed.scheme != "https" and not (
         parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
     ):
@@ -42,8 +44,9 @@ def start_oauth_flow(
     _validate_endpoint(redirect_uri, "redirect URI")
     if not isinstance(client_id, str) or not client_id.strip() or len(client_id) > 500:
         raise ValueError("client_id must contain 1-500 characters")
-    if not scopes or any(not isinstance(scope, str) or not scope.strip() for scope in scopes):
-        raise ValueError("at least one non-empty OAuth scope is required")
+    if (not scopes or len(scopes) > 100
+            or any(not isinstance(scope, str) or not scope.strip() or len(scope) > 300 for scope in scopes)):
+        raise ValueError("OAuth scopes must contain 1-100 non-empty values of at most 300 characters")
     if extra_parameters and any(
         key in {"state", "code_challenge", "code_challenge_method", "client_id",
                 "redirect_uri", "response_type", "scope"}
@@ -136,8 +139,10 @@ def complete_oauth_flow(
         raise RuntimeError(f"OAuth token exchange failed: {type(exc).__name__}") from None
     except (UnicodeDecodeError, json.JSONDecodeError):
         raise RuntimeError("OAuth token endpoint returned invalid JSON") from None
-    if not isinstance(token_data, dict) or not isinstance(token_data.get("access_token"), str):
-        raise RuntimeError("OAuth token response did not contain an access token")
+    if (not isinstance(token_data, dict)
+            or not isinstance(token_data.get("access_token"), str)
+            or not token_data["access_token"]):
+        raise RuntimeError("OAuth token response did not contain a valid access token")
     metadata = vault.put(pending["provider"], pending["account_id"], token_data)
     vault.delete("_oauth_pending", state)
     return metadata
