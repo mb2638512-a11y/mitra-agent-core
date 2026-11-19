@@ -22,4 +22,4 @@ The SQLite store now persists one receipt per adapter operation. A receipt recor
 
 A receipt left in `started` after a process crash is intentionally not replayed automatically: a process may have stopped after the external system completed an action but before MITRA recorded the result. The operator must reconcile that uncertain outcome before retrying. The MCP tool `mitra_execution_receipts` exposes the history.
 
-These receipts are the durable audit foundation, not proof that an external operation actually happened. No external side-effect worker is enabled by this change.
+These receipts are the durable audit foundation, not proof that a third-party operation happened. The supervised local worker uses receipts for workspace read/list and approved text writes; external-service adapters remain disabled.
