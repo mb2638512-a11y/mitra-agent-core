@@ -105,8 +105,10 @@ def connect_host(custom_path: str | None = None, host: str | None = None) -> int
     return 0
 
 
-def universal_setup(name: str, config_path: str | None = None) -> int:
+def universal_setup(name: str, config_path: str | None = None, instance_id: str | None = None) -> int:
     """One-command bootstrap for any MCP-compatible agent."""
+    if instance_id:
+        os.environ["MITRA_INSTANCE_ID"] = instance_id
     init_instance(name)
     if config_path:
         return connect_host(custom_path=config_path)
@@ -123,6 +125,7 @@ def main() -> None:
     init.add_argument("--name", default="My MITRA Agent")
     setup = sub.add_parser("setup", help="universal one-command setup for any MCP-compatible agent")
     setup.add_argument("--name", default="My Agent")
+    setup.add_argument("--instance-id", help="unique isolated identity for this agent")
     setup.add_argument("--config", help="optional MCP client JSON config path to update")
     approval = sub.add_parser("approve-token", help="issue a short-lived local approval token")
     approval.add_argument("--task-id", required=True)
@@ -142,7 +145,7 @@ def main() -> None:
     if args.command == "init":
         raise SystemExit(init_instance(args.name))
     if args.command == "setup":
-        raise SystemExit(universal_setup(args.name, args.config))
+        raise SystemExit(universal_setup(args.name, args.config, args.instance_id))
     if args.command == "connect":
         raise SystemExit(connect_host(custom_path=args.config, host=args.host))
     if args.command == "approve-token":
