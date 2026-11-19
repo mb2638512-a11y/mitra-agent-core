@@ -156,9 +156,9 @@ def mitra_claim_task(lease_seconds: int = 60) -> dict:
 
 
 @mcp.tool()
-def mitra_start_task(task_id: str, lease_token: str, approved: bool = False) -> dict:
-    """Move a claimed task to running only when its risk policy permits it."""
-    return store.start_task(task_id, lease_token, approved=approved)
+def mitra_start_task(task_id: str, lease_token: str, approved_by: str = "") -> dict:
+    """Move a claimed task to running; high-impact work records the host-claimed approver label."""
+    return store.start_task(task_id, lease_token, approved_by=approved_by or None)
 
 
 @mcp.tool()
