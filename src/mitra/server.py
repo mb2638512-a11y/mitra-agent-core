@@ -88,16 +88,16 @@ def mitra_validate_plan(plan: dict) -> dict:
 
 
 @mcp.tool()
-def mitra_check_transition(current: str, target: str, risk: str = "read", approved: bool = False) -> dict:
+def mitra_check_transition(current: str, target: str, risk: str = "read") -> dict:
     """Preview a task-state transition. This checks policy but does not execute work."""
     try:
         level = RiskLevel(risk)
-        validate_transition(current, target, approved=approved, risk=level)
+        validate_transition(current, target, risk=level)
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
     except PermissionError as exc:
         return {"valid": False, "current": current, "target": target, "reason": str(exc)}
-    return {"valid": True, "current": current, "target": target, "risk": level.value, "approved": approved}
+    return {"valid": True, "current": current, "target": target, "risk": level.value, "approval_required": level is not RiskLevel.READ}
 
 @mcp.tool()
 def mitra_check_permission(risk: str) -> dict:
