@@ -27,7 +27,8 @@ def test_worker_executes_read_task_and_persists_result(tmp_path: Path):
     )
     result = worker.run_once()
     assert result["status"] == "completed"
-    assert result["result"]["content"] == "hello worker"
+    assert result["result_summary"]["path"] == "note.txt"
+    assert store.execution_receipts(task["id"])[0]["result"]["content"] == "hello worker"
     assert store.get_task(task["id"])["status"] == "completed"
     receipts = store.execution_receipts(task["id"])
     assert receipts[0]["status"] == "completed"
