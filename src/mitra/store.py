@@ -349,13 +349,24 @@ class Store:
                 (now,),
             ).fetchall()
             for row in rows:
-                status = "queued" if row["attempts"] < row["max_attempts"] else "failed"
+                uncertain = db.execute(
+                    "SELECT 1 FROM execution_receipts WHERE task_id=? AND status='started' LIMIT 1",
+                    (row["id"],),
+                ).fetchone() is not None
+                if uncertain:
+                    status = "failed"
+                    reason = "uncertain operation receipt; manual reconciliation required"
+                    event = "lease_expired_uncertain"
+                else:
+                    status = "queued" if row["attempts"] < row["max_attempts"] else "failed"
+                    reason = "worker lease expired"
+                    event = "lease_recovered"
                 db.execute(
                     """UPDATE tasks SET status=?, lease_token=NULL, lease_until=NULL,
-                    available_at=?, last_error='worker lease expired', updated_at=? WHERE id=?""",
-                    (status, now, now, row["id"]),
+                    worker_claimed_at=NULL, available_at=?, last_error=?, updated_at=? WHERE id=?""",
+                    (status, now, reason, now, row["id"]),
                 )
-                self._event(db, row["id"], "lease_recovered", f"new_status={status}")
+                self._event(db, row["id"], event, f"new_status={status}")
             return len(rows)
 
 
