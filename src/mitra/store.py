@@ -327,6 +327,107 @@ class Store:
                 self._event(db, row["id"], "lease_recovered", f"new_status={status}")
             return len(rows)
 
+
+    def begin_execution_receipt(
+        self, task_id: str, lease_token: str, *, capability_id: str,
+        operation: str, idempotency_key: str, request_hash: str,
+    ) -> dict[str, Any]:
+        """Reserve one operation under a live worker lease; never auto-replay an unfinished receipt."""
+        if not all(isinstance(x, str) and x.strip() for x in (
+            capability_id, operation, idempotency_key, request_hash
+        )):
+            raise ValueError("capability, operation, idempotency key and request hash are required")
+        if len(idempotency_key) > 200 or len(request_hash) != 64:
+            raise ValueError("invalid idempotency key or request hash")
+        now = utc_now()
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            task = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+            if task is None:
+                raise ValueError("Task not found")
+            if (task["status"] != "running" or task["lease_token"] != lease_token
+                    or not task["lease_until"] or task["lease_until"] <= now):
+                raise PermissionError("an active running-task lease is required")
+            existing = db.execute(
+                "SELECT * FROM execution_receipts WHERE idempotency_key=?",
+                (idempotency_key,),
+            ).fetchone()
+            if existing:
+                if (existing["task_id"] != task_id or existing["capability_id"] != capability_id
+                        or existing["operation"] != operation or existing["request_hash"] != request_hash):
+                    raise ValueError("idempotency key was already used for a different operation")
+                return dict(existing)
+            receipt_id = str(uuid.uuid4())
+            db.execute(
+                """INSERT INTO execution_receipts
+                (id, task_id, capability_id, operation, idempotency_key,
+                 request_hash, status, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'started', ?)""",
+                (receipt_id, task_id, capability_id, operation, idempotency_key, request_hash, now),
+            )
+            self._event(db, task_id, "adapter_operation_started", f"receipt={receipt_id}")
+            return dict(db.execute(
+                "SELECT * FROM execution_receipts WHERE id=?", (receipt_id,)
+            ).fetchone())
+
+    def finish_execution_receipt(
+        self, task_id: str, lease_token: str, receipt_id: str, *,
+        result: dict[str, Any] | None = None, error: str | None = None,
+    ) -> dict[str, Any]:
+        """Finalize a reserved receipt under the same active worker lease."""
+        if (result is None) == (error is None):
+            raise ValueError("provide exactly one of result or error")
+        encoded = json.dumps(result, sort_keys=True, ensure_ascii=False) if result is not None else None
+        if encoded is not None and len(encoded) > 20000:
+            raise ValueError("receipt result is too large")
+        if error is not None and len(error) > 2000:
+            raise ValueError("receipt error is too large")
+        now = utc_now()
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            task = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+            if task is None:
+                raise ValueError("Task not found")
+            if (task["status"] != "running" or task["lease_token"] != lease_token
+                    or not task["lease_until"] or task["lease_until"] <= now):
+                raise PermissionError("an active running-task lease is required")
+            receipt = db.execute(
+                "SELECT * FROM execution_receipts WHERE id=? AND task_id=?",
+                (receipt_id, task_id),
+            ).fetchone()
+            if receipt is None:
+                raise ValueError("execution receipt not found")
+            if receipt["status"] != "started":
+                raise ValueError("execution receipt is already finalized")
+            status = "completed" if error is None else "failed"
+            db.execute(
+                """UPDATE execution_receipts SET status=?, result_json=?, error=?, finished_at=?
+                WHERE id=? AND status='started'""",
+                (status, encoded, error, now, receipt_id),
+            )
+            self._event(db, task_id, "adapter_operation_" + status, f"receipt={receipt_id}")
+            return dict(db.execute(
+                "SELECT * FROM execution_receipts WHERE id=?", (receipt_id,)
+            ).fetchone())
+
+    def execution_receipts(self, task_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 200:
+            raise ValueError("limit must be between 1 and 200")
+        with self._connection() as db:
+            rows = db.execute(
+                "SELECT * FROM execution_receipts WHERE task_id=? ORDER BY started_at DESC LIMIT ?",
+                (task_id, limit),
+            ).fetchall()
+        values = []
+        for row in rows:
+            item = dict(row)
+            if item["result_json"] is not None:
+                item["result"] = json.loads(item.pop("result_json"))
+            else:
+                item.pop("result_json")
+            values.append(item)
+        return values
+
     def task_events(self, task_id: str, limit: int = 50) -> list[dict[str, Any]]:
         with self._connection() as db:
             rows = db.execute(
