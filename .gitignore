@@ -18,3 +18,5 @@ build/
 *.egg-info/
 approval.key
 *.approval.key
+vault.key
+*.vault.key
