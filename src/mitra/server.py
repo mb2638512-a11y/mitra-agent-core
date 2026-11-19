@@ -10,6 +10,7 @@ from mitra.security import RiskLevel, evaluate_action
 from mitra.planner import TaskPlan
 from mitra.engine import validate_transition
 from mitra.store import Store
+from mitra.registry import get_capability, list_capabilities
 
 config = InstanceConfig.load()
 store = Store(config.data_dir / "mitra.sqlite3")
@@ -45,24 +46,18 @@ def mitra_status() -> dict:
 
 
 @mcp.tool()
-def mitra_capabilities() -> list[dict]:
-    """List built-in capabilities and their current implementation status."""
-    return [
-        {"id": "mcp-core", "status": "ready", "description": "MCP tools over stdio; HTTP transport is opt-in."},
-        {"id": "instance-isolation", "status": "ready", "description": "Separate local data by MITRA_INSTANCE_ID."},
-        {"id": "task-ledger", "status": "ready", "description": "Create and inspect durable task records."},
-        {"id": "durable-worker-queue", "status": "ready", "description": "Atomic claims, worker leases, bounded retries, cancellation and crash recovery; no external action adapters."},
-        {"id": "task-audit", "status": "ready", "description": "Append-only task lifecycle event history."},
-        {"id": "memory-local", "status": "ready", "description": "SQLite memory with substring retrieval."},
-        {"id": "permission-primitives", "status": "ready", "description": "Read-only allowed; high-impact actions default-denied."},
-        {"id": "gmail", "status": "planned", "description": "OAuth-based Gmail adapter; user authorization required."},
-        {"id": "browser", "status": "planned", "description": "Policy-bound browser adapter with action approvals."},
-        {"id": "plan-contract", "status": "ready", "description": "Validate structured plans and risk-tagged steps."},
-        {"id": "guarded-task-lifecycle", "status": "ready", "description": "Validate task-state transitions and approval gates; no workers execute tasks yet."},
-        {"id": "model-provider", "status": "ready_optional", "description": "Optional OpenAI-compatible chat provider; credentials are read from an environment variable."},
-        {"id": "planner-executor", "status": "in_progress", "description": "Planning contracts are available; durable worker queue and execution adapters remain future work."},
-        {"id": "multi-agent", "status": "planned", "description": "Delegation with per-agent identity and scoped tools."},
-    ]
+def mitra_capabilities(include_planned: bool = True) -> list[dict]:
+    """List registered MITRA capabilities, status, risk and required scopes."""
+    return list_capabilities(include_planned=include_planned)
+
+
+@mcp.tool()
+def mitra_get_capability(capability_id: str) -> dict:
+    """Inspect one capability by its stable registry ID."""
+    capability = get_capability(capability_id)
+    if capability is None:
+        raise ValueError("Unknown capability ID")
+    return capability.to_dict()
 
 
 @mcp.tool()
