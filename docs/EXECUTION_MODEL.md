@@ -44,3 +44,10 @@ When an OpenAI-compatible provider is configured, `mitra_draft_plan` asks it for
 ## Worker operation contract
 
 A worker task's JSON details must declare a ready capability, an allowlisted operation and its exact arguments. The current handler supports `filesystem-read` with `read` or `list`, and `filesystem-write` with `write`. Write tasks move to `awaiting_approval`; the worker cannot execute them until the local task-bound approval flow issues a running lease. Unsupported task types are retried under the task's bounded retry budget. Read output is retained in the local execution receipt; the worker's console summary omits file contents.
+
+
+## OAuth and credential boundary
+
+OAuth Authorization Code with PKCE is available through `mitra_oauth_start` and `mitra_oauth_complete`. The PKCE verifier and pending state are encrypted in the instance vault. The token exchange reads any client secret from a named environment variable; the secret itself is never accepted as a tool argument. Access and refresh tokens are stored using AES-256-GCM and are not returned by MCP tools. `mitra_credential_accounts` returns provider/account metadata only.
+
+The user must create/configure their own OAuth application and approve the provider consent screen. These primitives do not yet implement Gmail, Calendar or browser actions. Provider-specific adapters must enforce exact scopes, refresh and revoke tokens, and test against mock services before being marked ready.
