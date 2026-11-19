@@ -39,6 +39,7 @@ def mitra_status() -> dict:
             "task_ledger": "ready",
             "local_memory": "ready",
             "permission_primitives": "ready",
+            "capability_registry": "ready",
             "external_integrations": "not_installed",
             "autonomous_execution": "guarded_queue_only",
         },
