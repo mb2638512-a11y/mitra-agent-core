@@ -53,6 +53,7 @@ class Store:
                 "lease_until": "TEXT",
                 "last_error": "TEXT",
                 "idempotency_key": "TEXT",
+                "worker_claimed_at": "TEXT",
             }
             for name, declaration in migrations.items():
                 if name not in existing:
@@ -141,7 +142,7 @@ class Store:
                 return None
             changed = db.execute(
                 """UPDATE tasks SET status='planning', attempts=attempts+1,
-                lease_token=?, lease_until=?, updated_at=?
+                lease_token=?, lease_until=?, worker_claimed_at=NULL, updated_at=?
                 WHERE id=? AND status='queued'""",
                 (token, lease_until, now_text, row["id"]),
             ).rowcount
@@ -209,11 +210,35 @@ class Store:
                 raise PermissionError("approval token has already been used") from exc
             db.execute(
                 """UPDATE tasks SET status='running', lease_token=?, lease_until=?,
-                updated_at=? WHERE id=?""",
+                worker_claimed_at=NULL, updated_at=? WHERE id=?""",
                 (worker_token, (now + timedelta(seconds=lease_seconds)).isoformat(), now_text, task_id),
             )
             self._event(db, task_id, "approved_and_started", f"verified_approver={claims['approver']}")
             return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
+
+    def claim_approved_task(self) -> dict[str, Any] | None:
+        """Atomically reserve one approved running task for a local supervised worker."""
+        now = utc_now()
+        with self._connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                """SELECT * FROM tasks WHERE status='running'
+                AND lease_until IS NOT NULL AND lease_until > ?
+                AND worker_claimed_at IS NULL ORDER BY updated_at LIMIT 1""",
+                (now,),
+            ).fetchone()
+            if row is None:
+                return None
+            changed = db.execute(
+                """UPDATE tasks SET worker_claimed_at=?, updated_at=?
+                WHERE id=? AND status='running' AND worker_claimed_at IS NULL
+                AND lease_until > ?""",
+                (now, now, row["id"], now),
+            ).rowcount
+            if changed != 1:
+                return None
+            self._event(db, row["id"], "supervised_worker_claimed")
+            return dict(db.execute("SELECT * FROM tasks WHERE id=?", (row["id"],)).fetchone())
 
     def renew_lease(self, task_id: str, lease_token: str, *, lease_seconds: int = 60) -> dict[str, Any]:
         """Renew an unexpired worker lease using its secret token."""
