@@ -124,7 +124,7 @@ The script creates a local virtual environment, installs the project and develop
 
 MITRA stores provider credentials in a per-instance SQLite vault encrypted with AES-256-GCM. The 256-bit vault key is kept separately in `vault.key` with private file permissions. Ciphertext is authenticated against the MITRA instance ID, provider and account ID. The MCP metadata tool never returns token contents.
 
-The OAuth tools implement Authorization Code with PKCE (S256). The user must supply their provider's OAuth client ID, authorization/token endpoints, redirect URI and exact scopes, then personally approve access in the provider's consent screen. The PKCE verifier and state are stored encrypted locally; authorization codes are exchanged server-side and tokens are saved in the vault.
+The OAuth tools implement Authorization Code with PKCE (S256). The user must supply their provider's OAuth client ID, authorization/token endpoints, redirect URI and exact scopes, then personally approve access in the provider's consent screen. Google endpoints are pre-allowlisted; custom providers must be explicitly listed in `MITRA_OAUTH_ALLOWED_HOSTS`. The PKCE verifier and state are stored encrypted locally; authorization codes are exchanged server-side and tokens are saved in the vault.
 
 This is an OAuth foundation, not a finished Gmail or Calendar adapter. MITRA does not create consumer mailboxes, ask for account passwords or silently grant access. Gmail and Calendar API operations remain planned until their scopes, API methods, refresh lifecycle, revocation and mock-service tests are implemented.
 
