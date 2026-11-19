@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 
 def utc_now() -> str:
@@ -25,8 +26,17 @@ class Store:
         connection.row_factory = sqlite3.Row
         return connection
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        connection = self._connect()
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
     def _initialize(self) -> None:
-        with self._connect() as db:
+        with self._connection() as db:
             db.execute("PRAGMA journal_mode=WAL")
             db.execute("""CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY, title TEXT NOT NULL, details TEXT NOT NULL,
@@ -39,7 +49,7 @@ class Store:
 
     def create_task(self, title: str, details: str = "") -> dict[str, Any]:
         now, task_id = utc_now(), str(uuid.uuid4())
-        with self._connect() as db:
+        with self._connection() as db:
             db.execute(
                 "INSERT INTO tasks VALUES (?, ?, ?, ?, ?, ?)",
                 (task_id, title, details, "queued", now, now),
@@ -47,12 +57,12 @@ class Store:
         return self.get_task(task_id) or {}
 
     def get_task(self, task_id: str) -> dict[str, Any] | None:
-        with self._connect() as db:
+        with self._connection() as db:
             row = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
         return dict(row) if row else None
 
     def list_tasks(self, limit: int = 20) -> list[dict[str, Any]]:
-        with self._connect() as db:
+        with self._connection() as db:
             rows = db.execute(
                 "SELECT * FROM tasks ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()
@@ -60,7 +70,7 @@ class Store:
 
     def save_memory(self, content: str, tags: list[str] | None = None) -> dict[str, Any]:
         memory_id, now = str(uuid.uuid4()), utc_now()
-        with self._connect() as db:
+        with self._connection() as db:
             db.execute(
                 "INSERT INTO memories VALUES (?, ?, ?, ?)",
                 (memory_id, content, json.dumps(tags or []), now),
@@ -69,7 +79,7 @@ class Store:
 
     def search_memory(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         needle = f"%{query}%"
-        with self._connect() as db:
+        with self._connection() as db:
             rows = db.execute(
                 "SELECT * FROM memories WHERE content LIKE ? ORDER BY created_at DESC LIMIT ?",
                 (needle, limit),
