@@ -58,6 +58,7 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
 - `mitra_save_memory`, `mitra_search_memory` — instance-local memory.
 - `mitra_check_permission` — inspect default risk policy; does not authorize an external action.
+- `mitra_draft_plan` — optionally ask the configured model to draft a plan, then validate its JSON and ready adapters.
 - `mitra_validate_plan` — validate a structured plan against registered capabilities and minimum risk levels.
 - `mitra_check_transition` — preview a task-state change and approval gate.
 - `mitra_claim_task`, `mitra_start_task` — durable worker claims and risk-gated start.
@@ -110,7 +111,7 @@ MITRA_MODEL_NAME=your-model-name
 MITRA_MODEL_API_KEY_ENV=MITRA_MODEL_API_KEY
 ```
 
-Set the actual `MITRA_MODEL_API_KEY` secret in the process environment or an OS secret manager. Never put a real key in `.env.example`, source control, task plans or memory. This adapter is a provider building block; it is not yet wired into an autonomous planner or task executor.
+Set the actual `MITRA_MODEL_API_KEY` secret in the process environment or an OS secret manager. Never put a real key in `.env.example`, source control, task plans or memory. The MCP tool `mitra_draft_plan` uses this provider to propose JSON plans and validates every proposed capability against the ready adapter registry. Model output never executes automatically; write steps still require a task and signed local approval.
 
 ## Instance data
 
