@@ -18,8 +18,14 @@ class Workspace:
     def __init__(self, root: Path, *, max_read_bytes: int = 1_000_000):
         if max_read_bytes < 1:
             raise ValueError("max_read_bytes must be positive")
-        self.root = root.resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        root = Path(root).expanduser()
+        root.parent.mkdir(parents=True, exist_ok=True)
+        if root.is_symlink():
+            raise PermissionError("workspace root must not be a symlink")
+        root.mkdir(exist_ok=True)
+        if root.is_symlink():
+            raise PermissionError("workspace root must not be a symlink")
+        self.root = root.resolve(strict=True)
         self.max_read_bytes = max_read_bytes
 
     def _resolve(self, relative_path: str) -> Path:
