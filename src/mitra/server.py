@@ -39,7 +39,7 @@ def mitra_status() -> dict:
             "local_memory": "ready",
             "permission_primitives": "ready",
             "external_integrations": "not_installed",
-            "autonomous_execution": "not_enabled",
+            "autonomous_execution": "guarded_queue_only",
         },
     }
 
@@ -50,7 +50,9 @@ def mitra_capabilities() -> list[dict]:
     return [
         {"id": "mcp-core", "status": "ready", "description": "MCP tools over stdio; HTTP transport is opt-in."},
         {"id": "instance-isolation", "status": "ready", "description": "Separate local data by MITRA_INSTANCE_ID."},
-        {"id": "task-ledger", "status": "ready", "description": "Create and inspect task records."},
+        {"id": "task-ledger", "status": "ready", "description": "Create and inspect durable task records."},
+        {"id": "durable-worker-queue", "status": "ready", "description": "Atomic claims, worker leases, bounded retries, cancellation and crash recovery; no external action adapters."},
+        {"id": "task-audit", "status": "ready", "description": "Append-only task lifecycle event history."},
         {"id": "memory-local", "status": "ready", "description": "SQLite memory with substring retrieval."},
         {"id": "permission-primitives", "status": "ready", "description": "Read-only allowed; high-impact actions default-denied."},
         {"id": "gmail", "status": "planned", "description": "OAuth-based Gmail adapter; user authorization required."},
@@ -98,14 +100,14 @@ def mitra_check_permission(risk: str) -> dict:
 
 
 @mcp.tool()
-def mitra_create_task(title: str, details: str = "") -> dict:
-    """Record a task in this instance's queue. This does not perform external actions."""
+def mitra_create_task(title: str, details: str = "", risk: str = "read", max_attempts: int = 3, idempotency_key: str = "") -> dict:
+    """Record a durable task. High-impact work requires approval; no actions are executed."""
     clean_title = title.strip()
     if not clean_title or len(clean_title) > 200:
         raise ValueError("title must contain 1-200 characters")
     if len(details) > 10_000:
         raise ValueError("details must be at most 10000 characters")
-    return store.create_task(clean_title, details)
+    return store.create_task(clean_title, details, risk=risk, max_attempts=max_attempts, idempotency_key=idempotency_key or None)
 
 
 @mcp.tool()
