@@ -83,8 +83,20 @@ class Worker:
         )
         if not receipt.get("_created"):
             if receipt["status"] == "completed":
+                self.store.begin_verification(task_id, lease_token)
+                self.store.finish_task(
+                    task_id, lease_token, success=True,
+                    detail="Recovered completed operation from receipt=" + receipt["id"],
+                )
                 return {"task_id": task_id, "status": "completed", "receipt_id": receipt["id"],
                         "replayed": True}
+            if receipt["status"] == "failed":
+                self.store.begin_verification(task_id, lease_token)
+                self.store.finish_task(
+                    task_id, lease_token, success=False,
+                    detail="Prior idempotent operation failed; receipt=" + receipt["id"],
+                )
+                return {"task_id": task_id, "status": "failed", "receipt_id": receipt["id"]}
             return {"task_id": task_id, "status": "uncertain", "receipt_id": receipt["id"],
                     "message": "An unfinished receipt requires manual reconciliation."}
         try:
@@ -100,8 +112,18 @@ class Worker:
                 task_id, lease_token, success=True,
                 detail="Verified local adapter operation; receipt=" + finalized["id"],
             )
+            if operation == "read":
+                payload = result.data["content"].encode("utf-8")
+                summary = {
+                    "path": result.data["path"], "size": result.data["size"],
+                    "sha256": hashlib.sha256(payload).hexdigest(),
+                }
+            elif operation == "list":
+                summary = {"entries": len(result.data)}
+            else:
+                summary = result.data
             return {"task_id": task_id, "status": completed["status"],
-                    "receipt_id": finalized["id"], "result": result.data}
+                    "receipt_id": finalized["id"], "result_summary": summary}
         except Exception as exc:
             try:
                 self.store.finish_execution_receipt(
