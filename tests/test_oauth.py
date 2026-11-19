@@ -100,7 +100,8 @@ def test_oauth_extra_parameters_cannot_override_pkce_or_state(tmp_path: Path, mo
 
 
 
-def test_oauth_rejects_untrusted_provider_hosts(tmp_path: Path):
+def test_oauth_rejects_untrusted_provider_hosts(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("MITRA_OAUTH_ALLOWED_HOSTS", raising=False)
     with pytest.raises(PermissionError, match="not allowlisted"):
         start_oauth_flow(
             make_vault(tmp_path),
