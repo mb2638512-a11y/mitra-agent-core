@@ -65,4 +65,4 @@ def test_instance_approval_key_is_created_once_and_reused(tmp_path: Path):
 
 def test_malformed_approval_token_fails_closed():
     with pytest.raises(PermissionError):
-        verify_approval_token("not-a-valid-token", "task-1", "s" * 48)
+        verify_approval_token("not-a-valid-token", "task-1", "s" * 48, intent_fingerprint="0" * 64)
