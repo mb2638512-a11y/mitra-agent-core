@@ -32,3 +32,16 @@ def test_universal_setup_prints_generic_mcp_config(tmp_path: Path, monkeypatch, 
     assert entry["env"]["MITRA_DISPLAY_NAME"] == "Universal Agent"
     assert entry["args"] == ["-m", "mitra.cli", "serve"]
     assert "claude" not in output.lower()
+
+
+
+def test_universal_setup_can_initialize_and_merge_config_in_one_command(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("MITRA_INSTANCE_ID", "one-command-agent")
+    monkeypatch.setenv("MITRA_HOME", str(tmp_path / "data"))
+    config_path = tmp_path / "host" / "mcp.json"
+    config_path.parent.mkdir()
+    config_path.write_text(json.dumps({"other": True}), encoding="utf-8")
+    assert universal_setup("One Command Agent", str(config_path)) == 0
+    saved = json.loads(config_path.read_text(encoding="utf-8"))
+    assert saved["other"] is True
+    assert saved["mcpServers"]["mitra"]["env"]["MITRA_DISPLAY_NAME"] == "One Command Agent"
