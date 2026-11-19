@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 
 from mitra.credentials import CredentialVault
-from mitra.oauth import complete_oauth_flow, start_oauth_flow
+from mitra.oauth import complete_oauth_flow, refresh_oauth_token, start_oauth_flow
 
 
 def make_vault(tmp_path: Path):
@@ -112,3 +112,43 @@ def test_oauth_rejects_untrusted_provider_hosts(tmp_path: Path):
             redirect_uri="http://127.0.0.1:8766/callback",
             scopes=["profile.read"],
         )
+
+
+
+def test_oauth_refresh_uses_secret_env_and_keeps_refresh_token(tmp_path: Path, monkeypatch):
+    vault = make_vault(tmp_path)
+    vault.put("google", "user@example.test", {
+        "access_token": "expired-access",
+        "refresh_token": "long-lived-refresh",
+        "expires_at": 1,
+        "_mitra_oauth": {
+            "client_id": "client-id",
+            "token_endpoint": "https://oauth2.googleapis.com/token",
+            "client_secret_env": "GOOGLE_CLIENT_SECRET",
+        },
+    })
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "client-secret-value")
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, size):
+            return json.dumps({"access_token": "new-access", "expires_in": 3600}).encode()
+
+    def fake_urlopen(request, timeout):
+        captured["body"] = parse_qs(request.data.decode())
+        return FakeResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    token = refresh_oauth_token(vault, provider="google", account_id="user@example.test")
+    assert token == "new-access"
+    assert captured["body"]["refresh_token"] == ["long-lived-refresh"]
+    assert captured["body"]["client_secret"] == ["client-secret-value"]
+    updated = vault.get("google", "user@example.test")
+    assert updated["refresh_token"] == "long-lived-refresh"
+    assert updated["access_token"] == "new-access"
