@@ -27,6 +27,10 @@ Workers must retain the lease token to start, verify and finish a task. Expired 
 - `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases`.
 - `mitra_task_events`: read the task audit history.
 
+## Scoped filesystem read adapter
+
+The current read adapter exposes only the per-instance `workspace` directory through `mitra_fs_list` and `mitra_fs_read`. It rejects absolute paths, traversal segments and symlinks, and limits UTF-8 text reads to 1 MB. It does not write files or access arbitrary system paths. The workspace boundary is defense in depth, not an OS sandbox.
+
 ## Not enabled yet
 
 No capability executor is connected. The worker lifecycle does not execute arbitrary code or external actions. Next gates are authenticated approval records, process worker loop, capability allowlists, per-step execution receipts, OAuth adapters and mock-service integration tests. Each executor must enforce policy immediately before side effects.
