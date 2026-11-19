@@ -207,6 +207,14 @@ def mitra_heartbeat_task(task_id: str, lease_token: str, lease_seconds: int = 60
 
 
 @mcp.tool()
+def mitra_execution_receipts(task_id: str, limit: int = 50) -> list[dict]:
+    """Inspect durable adapter-operation receipts for one task."""
+    if store.get_task(task_id) is None:
+        raise ValueError("Task not found")
+    return store.execution_receipts(task_id, limit)
+
+
+@mcp.tool()
 def mitra_queue_stats() -> dict:
     """Return counts of tasks in each lifecycle state."""
     return store.queue_stats()
