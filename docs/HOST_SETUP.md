@@ -1,34 +1,44 @@
-# Host setup and clone isolation
+# Universal MCP host setup
 
-MITRA speaks MCP. A host needs an MCP client and a way to launch or reach the MITRA server. This guide covers host config formats we currently generate.
+MITRA does not require one specific AI application. It exposes a standard MCP server over stdio. Any agent or desktop client that supports MCP and permits a local stdio server can connect to its own MITRA instance.
 
-## Claude Desktop
+## One universal command
 
-After installing MITRA into a Python environment:
+Install MITRA in a Python 3.11+ environment, then run:
 
 ```bash
-mitra connect --host claude-desktop
+mitra setup --name "My Agent"
 ```
 
-This safely merges a `mitra` entry into the Claude Desktop JSON config without removing other MCP servers. Restart Claude Desktop.
+This initializes an isolated local profile and prints a portable `mcpServers` JSON entry. Copy the entry into the MCP configuration for the agent you want to connect.
 
-## Cursor
+To initialize and merge the entry into a known MCP JSON configuration in one command:
+
+```bash
+mitra setup --name "My Agent" --config /path/to/your-agent-mcp.json
+```
+
+The command preserves other JSON keys and other MCP servers. It refuses malformed JSON rather than overwriting it.
+
+## Existing profile
+
+To connect an already initialized profile to another MCP client:
+
+```bash
+mitra connect --config /path/to/your-agent-mcp.json
+```
+
+MITRA also provides a small optional Cursor shortcut:
 
 ```bash
 mitra connect --host cursor
 ```
 
-This updates the Cursor MCP JSON config. Reload/restart Cursor to discover the tools.
+The generic `--config` mode is the portable route for all other MCP-compatible clients. MITRA cannot auto-configure a host that does not expose a supported configuration file or local MCP server feature.
 
-## Other MCP hosts
+## Manual configuration shape
 
-Use the generic config option to merge into a host's MCP JSON config:
-
-```bash
-mitra connect --config /path/to/host-mcp-config.json
-```
-
-Or use this equivalent entry in the host's configuration (replace the Python executable path with the environment where MITRA is installed):
+The universal command prints the exact values for the current Python environment and instance. The portable shape is:
 
 ```json
 {
@@ -36,21 +46,30 @@ Or use this equivalent entry in the host's configuration (replace the Python exe
     "mitra": {
       "command": "python",
       "args": ["-m", "mitra.cli", "serve"],
-      "env": {"MITRA_INSTANCE_ID": "agent-profile"}
+      "env": {
+        "MITRA_INSTANCE_ID": "agent-profile"
+      }
     }
   }
 }
 ```
 
-## Per-agent identity
+Use the Python executable from the environment where MITRA is installed. On Windows, the command normally prints the full path to that interpreter.
 
-Set a different `MITRA_INSTANCE_ID` for each host profile. For example, `claude-primary`, `minimax-work`, `gemini-research`. Each ID gets a separate SQLite database and memory directory.
+## Independent agent identities
 
-A provider/host may use a different configuration format or may not expose MCP at all. In those cases, use its documented adapter or a bridge; do not assume that one config file can connect every product.
+Give each agent a distinct `MITRA_INSTANCE_ID`. Each instance has its own local SQLite database, memory, approval key and workspace. A connected host receives only the instance specified in its MCP entry.
 
-## Safety notes
+## Host compatibility
 
-- The connector writes only the selected MCP config file and preserves other JSON keys.
-- It refuses to overwrite malformed JSON.
-- Host restart/reload may be required.
-- MITRA currently records tasks and stores local memory; it does not yet send email or execute external tasks.
+- MCP support is required.
+- Local stdio process launch is required for this configuration shape.
+- Some hosted agents accept remote MCP only; those require a separately secured HTTP deployment or a supported bridge.
+- A product that does not support MCP needs a custom adapter or bridge. A JSON snippet alone cannot add MCP support to that product.
+
+## Security
+
+- Keep each instance data directory private.
+- Never copy `approval.key` into an MCP config or share it between agents.
+- The setup command writes only the selected MCP config file.
+- Reload the host after updating its configuration.
