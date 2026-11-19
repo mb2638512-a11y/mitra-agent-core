@@ -169,11 +169,14 @@ class Store:
 
     def approve_task(self, task_id: str, approval_token: str, secret: str, *, lease_seconds: int = 60) -> dict[str, Any]:
         """Consume a signed, task-bound, single-use approval token and issue a worker lease."""
-        from mitra.security import verify_approval_token
+        from mitra.security import approval_fingerprint, verify_approval_token
 
         if not 5 <= lease_seconds <= 3600:
             raise ValueError("lease_seconds must be between 5 and 3600")
-        claims = verify_approval_token(approval_token, task_id, secret)
+        task = self.get_task(task_id)
+        if task is None:
+            raise ValueError('Task not found')
+        claims = verify_approval_token(approval_token, task_id, secret, intent_fingerprint=approval_fingerprint(task))
         now = datetime.now(timezone.utc)
         now_text = now.isoformat()
         worker_token = str(uuid.uuid4())
