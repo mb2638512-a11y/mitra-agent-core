@@ -7,7 +7,7 @@ MITRA does not require one specific AI application. It exposes a standard MCP se
 Install MITRA in a Python 3.11+ environment, then run:
 
 ```bash
-mitra setup --name "My Agent"
+mitra setup --name "My Agent" --instance-id my-agent
 ```
 
 This initializes an isolated local profile and prints a portable `mcpServers` JSON entry. Copy the entry into the MCP configuration for the agent you want to connect.
@@ -15,7 +15,7 @@ This initializes an isolated local profile and prints a portable `mcpServers` JS
 To initialize and merge the entry into a known MCP JSON configuration in one command:
 
 ```bash
-mitra setup --name "My Agent" --config /path/to/your-agent-mcp.json
+mitra setup --name "My Agent" --instance-id my-agent --config /path/to/your-agent-mcp.json
 ```
 
 The command preserves other JSON keys and other MCP servers. It refuses malformed JSON rather than overwriting it.
