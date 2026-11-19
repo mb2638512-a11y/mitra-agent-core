@@ -156,13 +156,37 @@ class Store:
             decision = evaluate_action(RiskLevel(row["risk"]), approved=bool(approved_by))
             if not decision.allowed:
                 db.execute(
-                    "UPDATE tasks SET status='awaiting_approval', updated_at=? WHERE id=?",
+                    "UPDATE tasks SET status='awaiting_approval', lease_token=NULL, lease_until=NULL, updated_at=? WHERE id=?",
                     (utc_now(), task_id),
                 )
                 self._event(db, task_id, "approval_required", decision.reason)
                 return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
             db.execute("UPDATE tasks SET status='running', updated_at=? WHERE id=?", (utc_now(), task_id))
             self._event(db, task_id, "approved_and_started" if approved_by else "started", f"claimed_approver={approved_by}" if approved_by else "")
+            result = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+        return dict(result)
+
+    def approve_task(self, task_id: str, approved_by: str, *, lease_seconds: int = 60) -> dict[str, Any]:
+        """Record a host-claimed approval and issue a fresh worker lease."""
+        approved_by = approved_by.strip()
+        if not approved_by or len(approved_by) > 200:
+            raise ValueError("approved_by must contain 1-200 characters")
+        if not 5 <= lease_seconds <= 3600:
+            raise ValueError("lease_seconds must be between 5 and 3600")
+        now = datetime.now(timezone.utc)
+        token = str(uuid.uuid4())
+        with self._connection() as db:
+            row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+            if row is None:
+                raise ValueError("Task not found")
+            if row["status"] != "awaiting_approval":
+                raise ValueError("task is not awaiting approval")
+            db.execute(
+                """UPDATE tasks SET status='running', lease_token=?, lease_until=?,
+                updated_at=? WHERE id=?""",
+                (token, (now + timedelta(seconds=lease_seconds)).isoformat(), now.isoformat(), task_id),
+            )
+            self._event(db, task_id, "approved_and_started", f"claimed_approver={approved_by}")
             result = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
         return dict(result)
 
