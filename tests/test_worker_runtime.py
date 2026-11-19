@@ -107,6 +107,14 @@ def test_worker_retries_unsupported_capability_without_crashing(tmp_path: Path):
         }),
         risk="external",
     )
+    claimed = store.claim_task()
+    pending = store.start_task(task["id"], claimed["lease_token"])
+    secret = "test-local-approval-secret-123456789"
+    token = issue_approval_token(
+        task["id"], "local test", secret,
+        intent_fingerprint=approval_fingerprint(pending),
+    )
+    store.approve_task(task["id"], token, secret)
     result = worker.run_once()
     assert result["status"] == "retry_or_failed"
     assert "no supervised worker handler" in result["error"]
