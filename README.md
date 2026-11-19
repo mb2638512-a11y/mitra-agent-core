@@ -77,7 +77,7 @@ Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects
 
 ## Capability registry
 
-MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed. A typed adapter contract and explicit in-process allowlist are active. `authorize_adapter_execution` checks the active task lease, ready capability, installed adapter, operation allowlist and minimum risk. The filesystem write tool additionally requires an approved running task and records a durable idempotency receipt. No background worker or external-service adapter is enabled yet.
+MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed. A typed adapter contract and explicit in-process allowlist are active. `authorize_adapter_execution` checks the active task lease, ready capability, installed adapter, operation allowlist and minimum risk. The filesystem write tool additionally requires an approved running task and records a durable idempotency receipt. The supervised worker currently executes only local workspace read/list and approved text-write operations; no third-party service adapter is enabled.
 
 ## Authenticated local approvals
 
