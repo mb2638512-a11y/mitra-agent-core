@@ -145,12 +145,28 @@ class Worker:
                 return {"task_id": task["id"], "status": "awaiting_approval"}
             if task["status"] != "running":
                 return {"task_id": task["id"], "status": task["status"]}
-            return self._execute(task)
+            try:
+                return self._execute(task)
+            except Exception as exc:
+                try:
+                    self.store.retry_task(task["id"], delay_seconds=30, reason=str(exc)[:2000])
+                except (ValueError, PermissionError):
+                    pass
+                return {"task_id": task["id"], "status": "retry_or_failed",
+                        "error": str(exc)[:500]}
 
         approved = self.store.claim_approved_task()
         if approved is None:
             return {"status": "idle"}
-        return self._execute(approved)
+        try:
+            return self._execute(approved)
+        except Exception as exc:
+            try:
+                self.store.retry_task(approved["id"], delay_seconds=30, reason=str(exc)[:2000])
+            except (ValueError, PermissionError):
+                pass
+            return {"task_id": approved["id"], "status": "retry_or_failed",
+                    "error": str(exc)[:500]}
 
     def run_forever(self, *, poll_seconds: float = 2.0, max_tasks: int = 0) -> None:
         if not 0.2 <= poll_seconds <= 60:
