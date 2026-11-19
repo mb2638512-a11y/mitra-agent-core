@@ -62,7 +62,15 @@ def default_host_config(host: str) -> Path:
 def mcp_config_entry() -> dict:
     """Return the portable MCP client entry for the active MITRA instance."""
     config = InstanceConfig.load()
-    env = {"MITRA_INSTANCE_ID": config.instance_id}
+    env = {"MITRA_INSTANCE_ID": config.instance_id, "MITRA_DISPLAY_NAME": config.display_name}
+    profile_path = config.data_dir / "profile.json"
+    if profile_path.exists():
+        try:
+            profile = json.loads(profile_path.read_text(encoding="utf-8"))
+            if isinstance(profile, dict) and isinstance(profile.get("display_name"), str):
+                env["MITRA_DISPLAY_NAME"] = profile["display_name"]
+        except (OSError, json.JSONDecodeError):
+            pass
     if os.getenv("MITRA_HOME"):
         env["MITRA_HOME"] = os.environ["MITRA_HOME"]
     return {"command": sys.executable, "args": ["-m", "mitra.cli", "serve"], "env": env}
