@@ -22,11 +22,10 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
 python -m pip install -e ".[dev]"
-mitra init --name my-agent
-mitra connect --host claude-desktop
+mitra setup --name my-agent
 ```
 
-Restart Claude Desktop after connecting. For Cursor, use `mitra connect --host cursor`. See [Host setup](docs/HOST_SETUP.md).
+The command initializes an isolated MITRA instance and prints a portable MCP configuration. To merge it into a host config automatically, use `mitra setup --name my-agent --config /path/to/mcp-config.json`. See [Universal host setup](docs/HOST_SETUP.md).
 
 The default server uses **stdio**: the MCP host launches MITRA as a subprocess. No port, frontend or cloud account is needed.
 
@@ -35,14 +34,15 @@ The default server uses **stdio**: the MCP host launches MITRA as a subprocess. 
 Give every host/agent a unique instance ID before running `mitra init` and `mitra connect`:
 
 ```bash
-# Example: Claude profile
-# Windows PowerShell: $env:MITRA_INSTANCE_ID="claude-primary"
-# macOS/Linux: export MITRA_INSTANCE_ID=claude-primary
-mitra init --name "Claude's MITRA"
+# Example: first independent agent profile
+# Windows PowerShell: $env:MITRA_INSTANCE_ID="agent-alpha"
+# macOS/Linux: export MITRA_INSTANCE_ID=agent-alpha
+mitra setup --name "Agent Alpha"
 
-# A separate MiniMax profile uses another instance ID:
-# export MITRA_INSTANCE_ID=minimax-work
-mitra init --name "MiniMax's MITRA"
+# A second agent gets a separate identity and database:
+# Windows PowerShell: $env:MITRA_INSTANCE_ID="agent-beta"
+# macOS/Linux: export MITRA_INSTANCE_ID=agent-beta
+mitra setup --name "Agent Beta"
 ```
 
 Each instance has its own local database. A host must support MCP and allow local server configuration; connection is not magically automatic in every product.
