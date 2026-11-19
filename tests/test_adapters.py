@@ -1,11 +1,13 @@
 from pathlib import Path
+import hashlib
+import json
 
 import pytest
 
 from mitra.adapters import AdapterContext, AdapterRegistry, authorize_adapter_execution
 from mitra.filesystem import FilesystemReadAdapter, FilesystemWriteAdapter
 from mitra.store import Store
-from mitra.security import RiskLevel
+from mitra.security import RiskLevel, approval_fingerprint, issue_approval_token
 
 
 def test_registry_requires_unique_explicit_adapters():
@@ -105,3 +107,49 @@ def test_write_adapter_is_separate_and_confined_to_workspace(tmp_path: Path):
     assert (workspace / "hello.txt").read_text(encoding="utf-8") == "approved"
     with pytest.raises(ValueError, match="not supported"):
         adapter.execute("delete", {"path": "hello.txt"}, context)
+
+
+
+def test_approved_write_requires_token_and_records_receipt(tmp_path: Path):
+    details = json.dumps({
+        "capability": "filesystem-write",
+        "operation": "write",
+        "path": "approved.txt",
+        "content": "approved content",
+    }, sort_keys=True)
+    store = Store(tmp_path / "queue.sqlite3")
+    task = store.create_task("Write approved file", details=details, risk="write")
+    claimed = store.claim_task()
+    gated = store.start_task(task["id"], claimed["lease_token"])
+    assert gated["status"] == "awaiting_approval"
+
+    secret = "local-test-secret-that-is-long-enough-123"
+    token = issue_approval_token(
+        task["id"], "test operator", secret,
+        intent_fingerprint=approval_fingerprint(gated),
+    )
+    approved = store.approve_task(task["id"], token, secret)
+    registry = AdapterRegistry()
+    registry.register(FilesystemWriteAdapter())
+    permit = authorize_adapter_execution(
+        store=store, registry=registry, instance_id="test",
+        data_dir=tmp_path, task_id=task["id"],
+        lease_token=approved["lease_token"],
+        capability_id="filesystem-write", operation="write",
+    )
+    request_hash = hashlib.sha256(details.encode("utf-8")).hexdigest()
+    receipt = store.begin_execution_receipt(
+        task["id"], approved["lease_token"], capability_id="filesystem-write",
+        operation="write", idempotency_key="approved-write-1",
+        request_hash=request_hash,
+    )
+    assert receipt["_created"]
+    result = permit.adapter.execute(
+        "write", {"path": "approved.txt", "content": "approved content"},
+        permit.context,
+    )
+    store.finish_execution_receipt(
+        task["id"], approved["lease_token"], receipt["id"], result=result.data,
+    )
+    assert (tmp_path / "workspace" / "approved.txt").read_text(encoding="utf-8") == "approved content"
+    assert store.execution_receipts(task["id"])[0]["status"] == "completed"
