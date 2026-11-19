@@ -12,7 +12,7 @@ A plan contains one objective, 1–20 measurable success criteria, and 1–30 st
 
 `queued → planning → awaiting_approval → running → verifying → completed`
 
-A worker claims one queued task and receives a random lease token. The claim only moves the task into planning. Starting a high-impact task without an approver label moves it to `awaiting_approval`. A separate `mitra_approve_task` call must supply an approver label; that label is recorded in the task event log and a fresh worker lease is issued. This is an auditable *claim*, not verified human identity: a production host must authenticate the approving user and bind the identity to the approval request before enabling real side-effect adapters.
+A worker claims one queued task and receives a random lease token. The claim only moves the task into planning. Starting a high-impact task moves it to `awaiting_approval`. A local user issues a short-lived HMAC approval token using `mitra approve-token`; `mitra_approve_task` verifies that the token is signed by the configured local secret, bound to the exact task, unexpired and unused. The nonce is consumed transactionally in SQLite before a fresh worker lease is issued. This proves possession of the local secret, not identity from an external identity provider.
 
 Workers must retain the lease token to start, verify and finish a task. Expired leases can be recovered; tasks are requeued only while retry budget remains. Idempotency keys prevent duplicate task creation for the same caller-supplied request key. Cancellation revokes the active lease. Retry delays are bounded to one day and attempts are capped at ten.
 
@@ -20,7 +20,7 @@ Workers must retain the lease token to start, verify and finish a task. Expired 
 
 - `mitra_claim_task`: atomically claim one queued task for planning.
 - `mitra_start_task`: start read-only work or place high-impact work into the approval queue.
-- `mitra_approve_task`: record the host-claimed approver label and issue a fresh lease.
+- `mitra_approve_task`: verify a short-lived, task-bound, single-use HMAC token and issue a fresh lease.
 - `mitra_begin_verification` and `mitra_finish_task`: explicit verification/finalization.
 - `mitra_heartbeat_task`: renew an unexpired lease while work is in progress.
 - `mitra_queue_stats`: count tasks by lifecycle state.
@@ -33,4 +33,4 @@ The current read adapter exposes only the per-instance `workspace` directory thr
 
 ## Not enabled yet
 
-No capability executor is connected. The worker lifecycle does not execute arbitrary code or external actions. Next gates are authenticated approval records, process worker loop, capability allowlists, per-step execution receipts, OAuth adapters and mock-service integration tests. Each executor must enforce policy immediately before side effects.
+No capability executor is connected. The worker lifecycle does not execute arbitrary code or external actions. Next gates are external identity-provider integration, process worker loop, capability allowlists, per-step execution receipts, OAuth adapters and mock-service integration tests. Each executor must enforce policy immediately before side effects.
