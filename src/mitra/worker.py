@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from pathlib import Path
 from typing import Any
 
 from mitra.adapters import AdapterRegistry, authorize_adapter_execution
