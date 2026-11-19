@@ -6,6 +6,7 @@ from mcp.server import MCPServer
 
 from mitra import __version__
 from mitra.config import InstanceConfig
+from mitra.security import RiskLevel, evaluate_action
 from mitra.store import Store
 
 config = InstanceConfig.load()
@@ -55,6 +56,22 @@ def mitra_capabilities() -> list[dict]:
         {"id": "planner-executor", "status": "planned", "description": "Model-backed planning and auditable execution queue."},
         {"id": "multi-agent", "status": "planned", "description": "Delegation with per-agent identity and scoped tools."},
     ]
+
+
+@mcp.tool()
+def mitra_check_permission(risk: str) -> dict:
+    """Check the default policy for read, write, external, financial or destructive actions."""
+    try:
+        level = RiskLevel(risk)
+    except ValueError as exc:
+        raise ValueError("risk must be one of: read, write, external, financial, destructive") from exc
+    decision = evaluate_action(level)
+    return {
+        "risk": level.value,
+        "allowed": decision.allowed,
+        "requires_approval": decision.requires_approval,
+        "reason": decision.reason,
+    }
 
 
 @mcp.tool()
