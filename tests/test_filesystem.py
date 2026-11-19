@@ -43,3 +43,25 @@ def test_rejects_binary_file(tmp_path: Path):
     (workspace.root / "binary.bin").write_bytes(b"\xff\xfe")
     with pytest.raises(ValueError, match="UTF-8"):
         workspace.read_text("binary.bin")
+
+
+
+def test_workspace_write_is_confined_and_returns_digest(tmp_path: Path):
+    workspace = Workspace(tmp_path / "workspace")
+    (tmp_path / "workspace" / "reports").mkdir()
+    result = workspace.write_text("reports/result.txt", "MITRA report")
+    assert result["bytes_written"] == len("MITRA report".encode())
+    assert len(result["sha256"]) == 64
+    assert (tmp_path / "workspace" / "reports" / "result.txt").read_text(encoding="utf-8") == "MITRA report"
+    with pytest.raises(PermissionError):
+        workspace.write_text("../outside.txt", "no")
+
+
+def test_workspace_write_rejects_symlink_target(tmp_path: Path):
+    workspace = Workspace(tmp_path / "workspace")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("safe", encoding="utf-8")
+    (tmp_path / "workspace" / "link.txt").symlink_to(outside)
+    with pytest.raises(PermissionError, match="symlinks"):
+        workspace.write_text("link.txt", "unsafe")
+    assert outside.read_text(encoding="utf-8") == "safe"
