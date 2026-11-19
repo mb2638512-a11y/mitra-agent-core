@@ -50,7 +50,9 @@ Each instance has its own local database. A host must support MCP and allow loca
 ## MCP tools in v0.1
 
 - `mitra_status` — instance identity and subsystem status.
-- `mitra_fs_list`, `mitra_fs_read` — read-only access to the instance workspace; paths are confined, symlinks rejected and UTF-8 reads capped at 1 MB.
+- `mitra_fs_list`, `mitra_fs_read` — list and read files inside the instance workspace.
+- `mitra_execute_workspace_write` — perform a task-bound, approved text write inside the workspace.
+- `mitra_execution_receipts` — inspect durable, idempotent operation receipts.
 - `mitra_capabilities`, `mitra_get_capability` — machine-readable registry, status, risk and required scopes.
 - `mitra_adapter_status` — inspect the explicit adapters registered in this MITRA process.
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
@@ -113,7 +115,7 @@ Override with `MITRA_HOME`. Do not commit instance data, OAuth tokens or API key
 
 ## Current scope
 
-This is the first foundation, not finished AGI. The durable queue manages task state but does not execute external actions. Gated task approval now requires a short-lived HMAC token bound to the task and a single-use nonce. This proves possession of the local approval secret, not identity through an external identity provider. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls remain planned adapter modules and require scoped credentials, audit trails and tests before production use.
+This is the first foundation, not finished AGI. The durable queue manages task state; the only side-effecting adapter currently enabled is the approved, receipt-tracked text write inside the instance workspace. External services and OS-level commands are not executed. Gated task approval now requires a short-lived HMAC token bound to the task and a single-use nonce. This proves possession of the local approval secret, not identity through an external identity provider. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls remain planned adapter modules and require scoped credentials, audit trails and tests before production use.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution model](docs/EXECUTION_MODEL.md)
