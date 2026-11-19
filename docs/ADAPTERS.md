@@ -11,6 +11,6 @@ The first adapter is `filesystem-read`. It supports only `list` and `read` again
 
 ## Execution boundary
 
-The task queue does not call adapters. This separation is intentional: adding an adapter does not silently make it autonomous. Before an adapter can be called by a worker, MITRA still needs a central execution gate that validates the registered capability, operation allowlist, task-intent fingerprint, risk policy, approval state, lease ownership and an audit receipt immediately before the side effect.
+The task queue does not call adapters. This separation is intentional: adding an adapter does not silently make it autonomous. The `authorize_adapter_execution` gate now checks that the task is running under an unexpired lease, the capability is registered as ready, the adapter is explicitly installed, the operation is allowlisted, and task risk is at least the adapter's minimum risk. Elevated-risk tasks can reach running only through the signed approval path. This gate returns a permit but does not call the adapter. A supervised worker, durable per-step execution receipts and idempotent side-effect handling are still required before any external adapter is enabled.
 
 External adapters must additionally implement least-privilege OAuth or scoped credentials, bounded timeouts, idempotency, redacted logs and mock-service tests. Never add arbitrary shell execution as a generic adapter.
