@@ -190,6 +190,39 @@ class Store:
             result = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
         return dict(result)
 
+    def renew_lease(self, task_id: str, lease_token: str, *, lease_seconds: int = 60) -> dict[str, Any]:
+        """Renew an unexpired worker lease using its secret token."""
+        if not 5 <= lease_seconds <= 3600:
+            raise ValueError("lease_seconds must be between 5 and 3600")
+        now = datetime.now(timezone.utc)
+        now_text = now.isoformat()
+        lease_until = (now + timedelta(seconds=lease_seconds)).isoformat()
+        with self._connection() as db:
+            row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+            if row is None:
+                raise ValueError("Task not found")
+            if row["status"] not in {"planning", "running", "verifying"}:
+                raise PermissionError("task does not hold an active worker lease")
+            if row["lease_token"] != lease_token or not row["lease_until"] or row["lease_until"] <= now_text:
+                raise PermissionError("worker lease is invalid or expired")
+            db.execute(
+                "UPDATE tasks SET lease_until=?, updated_at=? WHERE id=?",
+                (lease_until, now_text, task_id),
+            )
+            self._event(db, task_id, "lease_renewed", f"lease_seconds={lease_seconds}")
+            return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
+
+    def queue_stats(self) -> dict[str, int]:
+        with self._connection() as db:
+            rows = db.execute("SELECT status, COUNT(*) AS count FROM tasks GROUP BY status").fetchall()
+        stats = {state: 0 for state in (
+            "queued", "planning", "awaiting_approval", "running",
+            "verifying", "completed", "failed", "cancelled",
+        )}
+        stats.update({row["status"]: row["count"] for row in rows})
+        stats["total"] = sum(stats.values())
+        return stats
+
     def begin_verification(self, task_id: str, lease_token: str) -> dict[str, Any]:
         with self._connection() as db:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
