@@ -59,6 +59,7 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_claim_task`, `mitra_start_task` — durable worker claims and risk-gated start.
 - `mitra_approve_task` — record an approval label and issue a fresh lease.
 - `mitra_begin_verification`, `mitra_finish_task` — explicit task verification/finalization.
+- `mitra_heartbeat_task`, `mitra_queue_stats` — lease renewal and queue health.
 - `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases` — retry, cancellation and crash recovery.
 - `mitra_task_events` — task lifecycle audit history.
 
