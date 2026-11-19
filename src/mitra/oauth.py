@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import secrets
@@ -68,14 +69,14 @@ def start_oauth_flow(
         raise ValueError("OAuth scopes must contain 1-100 non-empty values of at most 300 characters")
     if extra_parameters and any(
         key in {"state", "code_challenge", "code_challenge_method", "client_id",
-                "redirect_uri", "response_type", "scope"}
+                "redirect_uri", "response_type", "scope", "client_secret", "code_verifier"}
         for key in extra_parameters
     ):
         raise ValueError("extra parameters cannot override protected OAuth fields")
 
     state = secrets.token_urlsafe(32)
     verifier = secrets.token_urlsafe(64)
-    challenge = __import__("base64").urlsafe_b64encode(
+    challenge = base64.urlsafe_b64encode(
         sha256(verifier.encode("ascii")).digest()
     ).rstrip(b"=").decode("ascii")
     pending = {
