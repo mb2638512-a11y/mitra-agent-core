@@ -52,6 +52,7 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_status` — instance identity and subsystem status.
 - `mitra_fs_list`, `mitra_fs_read` — read-only access to the instance workspace; paths are confined, symlinks rejected and UTF-8 reads capped at 1 MB.
 - `mitra_capabilities`, `mitra_get_capability` — machine-readable registry, status, risk and required scopes.
+- `mitra_adapter_status` — inspect the explicit adapters registered in this MITRA process.
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
 - `mitra_save_memory`, `mitra_search_memory` — instance-local memory.
 - `mitra_check_permission` — inspect default risk policy; does not authorize an external action.
@@ -116,6 +117,7 @@ This is the first foundation, not finished AGI. The durable queue manages task s
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution model](docs/EXECUTION_MODEL.md)
+- [Adapter contract](docs/ADAPTERS.md)
 - [Business roadmap](docs/BUSINESS_ROADMAP.md)
 - [Security policy](SECURITY.md)
 
