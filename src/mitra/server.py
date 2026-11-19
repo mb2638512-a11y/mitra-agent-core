@@ -19,6 +19,8 @@ adapter_context = AdapterContext(config.instance_id, config.data_dir)
 adapters = AdapterRegistry()
 adapters.register(FilesystemReadAdapter())
 filesystem_adapter = adapters.get("filesystem-read")
+if filesystem_adapter is None:
+    raise RuntimeError("required filesystem-read adapter failed to register")
 store = Store(config.data_dir / "mitra.sqlite3")
 mcp = MCPServer(
     "MITRA",
@@ -56,6 +58,19 @@ def mitra_status() -> dict:
 def mitra_capabilities(include_planned: bool = True) -> list[dict]:
     """List registered MITRA capabilities, status, risk and required scopes."""
     return list_capabilities(include_planned=include_planned)
+
+
+@mcp.tool()
+def mitra_adapter_status() -> list[dict]:
+    """List only the capability adapters explicitly registered in this process."""
+    return [
+        {
+            "capability_id": capability_id,
+            "risk": adapters.get(capability_id).risk.value,
+            "operations": sorted(adapters.get(capability_id).operations),
+        }
+        for capability_id in adapters.list_registered()
+    ]
 
 
 @mcp.tool()
