@@ -55,7 +55,7 @@ No credentials or personal memory are shared between clones by default. A user c
 | Gmail / calendar / drive adapters | Planned |
 | Browser automation | Planned |
 
-| General background executor | Planned (only approved workspace write tool currently executes a side effect) |
+| Supervised local worker | Implemented for workspace read/list and approved text writes; no shell or external execution |
 | Multi-provider model routing and plan drafting | Implemented; named routes, ordered fallback, strict JSON and ready-adapter validation |
 | Agent-to-agent federation | Planned |
 | Enterprise multi-tenant controls | Planned |
