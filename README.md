@@ -54,6 +54,8 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
 - `mitra_save_memory`, `mitra_search_memory` — instance-local memory.
 - `mitra_check_permission` — inspect default risk policy; does not authorize an external action.
+- `mitra_validate_plan` — validate a structured plan and risk-tagged steps.
+- `mitra_check_transition` — preview a task-state change and approval gate.
 
 ## Instance data
 
@@ -72,6 +74,7 @@ Override with `MITRA_HOME`. Do not commit instance data, OAuth tokens or API key
 This is the first foundation, not finished AGI. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls are planned adapter modules. They must be implemented with explicit authorization, scoped credentials, audit trails and tests before being advertised as available.
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Execution model](docs/EXECUTION_MODEL.md)
 - [Business roadmap](docs/BUSINESS_ROADMAP.md)
 - [Security policy](SECURITY.md)
 
