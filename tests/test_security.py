@@ -8,6 +8,7 @@ from mitra.security import (
     issue_approval_token,
     verify_approval_token,
     load_or_create_approval_secret,
+    approval_fingerprint,
 )
 
 
@@ -25,28 +26,30 @@ def test_external_action_requires_approval():
 
 def test_signed_approval_token_is_task_bound():
     secret = "x" * 48
-    token = issue_approval_token("task-1", "local-user", secret)
-    claims = verify_approval_token(token, "task-1", secret)
+    fingerprint = approval_fingerprint({"id":"task-1","title":"Task","details":"Details","risk":"external"})
+    token = issue_approval_token("task-1", "local-user", secret, intent_fingerprint=fingerprint)
+    claims = verify_approval_token(token, "task-1", secret, intent_fingerprint=fingerprint)
     assert claims["approver"] == "local-user"
     with pytest.raises(PermissionError):
-        verify_approval_token(token, "task-2", secret)
+        verify_approval_token(token, "task-2", secret, intent_fingerprint=fingerprint)
 
 
 def test_approval_token_rejects_wrong_secret_and_tampering():
-    token = issue_approval_token("task-1", "local-user", "s" * 48)
+    fingerprint = approval_fingerprint({"id":"task-1","title":"Task","details":"Details","risk":"external"})
+    token = issue_approval_token("task-1", "local-user", "s" * 48, intent_fingerprint=fingerprint)
     with pytest.raises(PermissionError):
-        verify_approval_token(token, "task-1", "z" * 48)
+        verify_approval_token(token, "task-1", "z" * 48, intent_fingerprint=fingerprint)
     body, signature = token.split(".", 1)
     tampered = body[:-1] + ("A" if body[-1] != "A" else "B") + "." + signature
     with pytest.raises(PermissionError):
-        verify_approval_token(tampered, "task-1", "s" * 48)
+        verify_approval_token(tampered, "task-1", "s" * 48, intent_fingerprint=fingerprint)
 
 
 def test_token_configuration_and_lifetime_are_bounded():
     with pytest.raises(ValueError):
-        issue_approval_token("task-1", "user", "short")
+        issue_approval_token("task-1", "user", "short", intent_fingerprint="abc")
     with pytest.raises(ValueError):
-        issue_approval_token("task-1", "user", "s" * 48, expires_in=9999)
+        issue_approval_token("task-1", "user", "s" * 48, intent_fingerprint="abc", expires_in=9999)
 
 
 def test_instance_approval_key_is_created_once_and_reused(tmp_path: Path):
