@@ -84,6 +84,12 @@ class Store:
         self, title: str, details: str = "", *, risk: str = "read",
         max_attempts: int = 3, idempotency_key: str | None = None,
     ) -> dict[str, Any]:
+        if not isinstance(title, str) or not title.strip() or len(title) > 200:
+            raise ValueError("title must contain 1-200 characters")
+        if not isinstance(details, str) or len(details.encode("utf-8")) > 1_050_000:
+            raise ValueError("details must be text no larger than 1050000 UTF-8 bytes")
+        if idempotency_key is not None and len(idempotency_key) > 200:
+            raise ValueError("idempotency_key must be at most 200 characters")
         if risk not in {"read", "write", "external", "financial", "destructive"}:
             raise ValueError("invalid task risk")
         if not 1 <= max_attempts <= 10:
