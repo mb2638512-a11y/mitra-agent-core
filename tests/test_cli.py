@@ -26,7 +26,7 @@ def test_universal_setup_prints_generic_mcp_config(tmp_path: Path, monkeypatch, 
     assert universal_setup("Universal Agent") == 0
     output = capsys.readouterr().out
     config_text = output.split("Universal MCP client configuration (JSON):", 1)[1]
-    config = json.loads(config_text.split("\\n\\nPaste this", 1)[0])
+    config = json.loads(config_text.split("\n\nPaste this", 1)[0])
     entry = config["mcpServers"]["mitra"]
     assert entry["env"]["MITRA_INSTANCE_ID"] == "universal-agent"
     assert entry["args"] == ["-m", "mitra.cli", "serve"]
