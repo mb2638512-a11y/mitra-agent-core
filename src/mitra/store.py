@@ -66,6 +66,8 @@ class Store:
             db.execute("""CREATE TABLE IF NOT EXISTS used_approval_nonces (
                 nonce TEXT PRIMARY KEY, task_id TEXT NOT NULL, used_at TEXT NOT NULL
             )""")
+            db.execute("""CREATE TABLE IF NOT EXISTS execution_receipts (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, capability_id TEXT NOT NULL, operation TEXT NOT NULL, idempotency_key TEXT NOT NULL UNIQUE, request_hash TEXT NOT NULL, status TEXT NOT NULL, result_json TEXT, error TEXT, started_at TEXT NOT NULL, finished_at TEXT, FOREIGN KEY(task_id) REFERENCES tasks(id))""")
+            db.execute("CREATE INDEX IF NOT EXISTS idx_receipts_task ON execution_receipts(task_id, started_at)")
             db.execute("""CREATE TABLE IF NOT EXISTS task_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL,
                 event TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL,
