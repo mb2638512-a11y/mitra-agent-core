@@ -59,6 +59,8 @@ def issue_approval_token(
         raise ValueError("MITRA_APPROVAL_SECRET must contain at least 32 characters")
     if not task_id or not approver.strip() or len(approver) > 200:
         raise ValueError("task_id and a 1-200 character approver are required")
+    if len(intent_fingerprint) != 64 or any(c not in "0123456789abcdef" for c in intent_fingerprint):
+        raise ValueError("intent_fingerprint must be a SHA-256 hex digest")
     if not 30 <= expires_in <= 600:
         raise ValueError("expires_in must be between 30 and 600 seconds")
     payload = {
@@ -80,6 +82,8 @@ def verify_approval_token(
 ) -> dict:
     if not secret or len(secret) < 32:
         raise PermissionError("approval secret is not configured securely")
+    if len(intent_fingerprint) != 64 or any(c not in "0123456789abcdef" for c in intent_fingerprint):
+        raise PermissionError("approval intent fingerprint is invalid")
     try:
         body, supplied_signature = token.split(".", 1)
         expected = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
@@ -104,6 +108,8 @@ def verify_approval_token(
 def load_or_create_approval_secret(path: Path) -> str:
     """Load a per-instance signing key, creating it with owner-only POSIX mode."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_symlink():
+        raise RuntimeError("approval key path must not be a symlink")
     try:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
@@ -119,4 +125,10 @@ def load_or_create_approval_secret(path: Path) -> str:
             pass
     if len(value) < 32:
         raise RuntimeError("MITRA approval key is missing or too short; inspect the local key file.")
+    if path.is_symlink():
+        raise RuntimeError("approval key path must not be a symlink")
+    if os.name != "nt":
+        mode = path.stat().st_mode & 0o777
+        if mode & 0o077:
+            raise RuntimeError("approval key permissions are too broad; run chmod 600 on approval.key")
     return value
