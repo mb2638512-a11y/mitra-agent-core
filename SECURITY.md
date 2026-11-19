@@ -17,7 +17,7 @@
 3. Bind each credential to an instance and capability; do not share tokens across clones by default.
 4. Require explicit approval for external communications, purchases, financial transfers and destructive changes.
 5. Record actor, tool, redacted arguments, approval and outcome in an append-only audit trail.
-6. Implement provider token refresh/revocation, capability disablement and data export/deletion before production OAuth integrations.
+6. Use the encrypted refresh helper, and implement provider token revocation, capability disablement and data export/deletion before production OAuth integrations.
 7. For network-exposed MCP, configure authentication, TLS, origin/DNS-rebinding protections and rate limits. Do not expose local HTTP mode directly to the public internet.
 
 ## Reporting
