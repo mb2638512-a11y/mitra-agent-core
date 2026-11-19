@@ -16,6 +16,8 @@ from mitra.store import Store
 from mitra.registry import get_capability, list_capabilities
 from mitra.adapters import AdapterContext, AdapterRegistry, authorize_adapter_execution
 from mitra.filesystem import FilesystemReadAdapter, FilesystemWriteAdapter
+from mitra.credentials import CredentialVault
+from mitra.oauth import start_oauth_flow, complete_oauth_flow
 
 config = InstanceConfig.load()
 adapter_context = AdapterContext(config.instance_id, config.data_dir)
@@ -52,7 +54,8 @@ def mitra_status() -> dict:
             "local_memory": "ready",
             "permission_primitives": "ready",
             "capability_registry": "ready",
-            "external_integrations": "not_installed",
+            "external_integrations": "oauth_scaffolding_ready",
+            "credential_vault": "ready",
             "autonomous_execution": "guarded_queue_only",
         },
     }
@@ -154,6 +157,54 @@ def mitra_execute_workspace_write(task_id: str, lease_token: str, idempotency_ke
             task_id, lease_token, receipt["id"], error=str(exc)[:2000],
         )
         raise
+
+
+def _credential_vault() -> CredentialVault:
+    return CredentialVault(
+        config.data_dir / "credentials.sqlite3",
+        config.data_dir / "vault.key",
+        instance_id=config.instance_id,
+    )
+
+
+@mcp.tool()
+def mitra_credential_accounts() -> list[dict]:
+    """List connected credential metadata only; never return access or refresh tokens."""
+    return _credential_vault().list_metadata()
+
+
+@mcp.tool()
+def mitra_oauth_start(
+    provider: str,
+    account_id: str,
+    authorization_endpoint: str,
+    token_endpoint: str,
+    client_id: str,
+    redirect_uri: str,
+    scopes: list[str],
+) -> dict:
+    """Start a user-consented OAuth 2.0 PKCE flow and return its authorization URL."""
+    return start_oauth_flow(
+        _credential_vault(),
+        provider=provider,
+        account_id=account_id,
+        authorization_endpoint=authorization_endpoint,
+        token_endpoint=token_endpoint,
+        client_id=client_id,
+        redirect_uri=redirect_uri,
+        scopes=scopes,
+    )
+
+
+@mcp.tool()
+def mitra_oauth_complete(state: str, authorization_code: str, client_secret_env: str = "") -> dict:
+    """Exchange a short-lived authorization code and store tokens encrypted locally."""
+    return complete_oauth_flow(
+        _credential_vault(),
+        state=state,
+        authorization_code=authorization_code,
+        client_secret_env=client_secret_env or None,
+    )
 
 
 @mcp.tool()
