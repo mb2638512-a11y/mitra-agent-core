@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from mcp.server import MCPServer
 
 from mitra import __version__
@@ -11,13 +13,14 @@ from mitra.planner import TaskPlan
 from mitra.engine import validate_transition
 from mitra.store import Store
 from mitra.registry import get_capability, list_capabilities
-from mitra.adapters import AdapterContext, AdapterRegistry
-from mitra.filesystem import FilesystemReadAdapter
+from mitra.adapters import AdapterContext, AdapterRegistry, authorize_adapter_execution
+from mitra.filesystem import FilesystemReadAdapter, FilesystemWriteAdapter
 
 config = InstanceConfig.load()
 adapter_context = AdapterContext(config.instance_id, config.data_dir)
 adapters = AdapterRegistry()
 adapters.register(FilesystemReadAdapter())
+adapters.register(FilesystemWriteAdapter())
 filesystem_adapter = adapters.get("filesystem-read")
 if filesystem_adapter is None:
     raise RuntimeError("required filesystem-read adapter failed to register")
@@ -94,6 +97,62 @@ def mitra_fs_read(path: str) -> dict:
     """Read a UTF-8 text file inside this instance's read-only workspace (max 1 MB)."""
     result = filesystem_adapter.execute("read", {"path": path}, adapter_context)
     return result.data
+
+
+@mcp.tool()
+def mitra_execute_workspace_write(task_id: str, lease_token: str, idempotency_key: str) -> dict:
+    """Execute one approved write described by the task's JSON details, inside this instance workspace."""
+    task = store.get_task(task_id)
+    if task is None:
+        raise ValueError("Task not found")
+    try:
+        intent = json.loads(task["details"])
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("task details must be valid JSON write intent") from exc
+    if not isinstance(intent, dict) or set(intent) != {"capability", "operation", "path", "content"}:
+        raise ValueError("write intent must contain exactly capability, operation, path and content")
+    if (intent["capability"] != "filesystem-write" or intent["operation"] != "write"
+            or not isinstance(intent["path"], str) or not isinstance(intent["content"], str)):
+        raise ValueError("task does not describe a valid filesystem write")
+    request = {
+        "capability": intent["capability"], "operation": intent["operation"],
+        "path": intent["path"], "content": intent["content"],
+    }
+    request_hash = hashlib.sha256(
+        json.dumps(request, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    permit = authorize_adapter_execution(
+        store=store, registry=adapters, instance_id=config.instance_id,
+        data_dir=config.data_dir, task_id=task_id, lease_token=lease_token,
+        capability_id="filesystem-write", operation="write",
+    )
+    receipt = store.begin_execution_receipt(
+        task_id, lease_token, capability_id="filesystem-write", operation="write",
+        idempotency_key=idempotency_key, request_hash=request_hash,
+    )
+    if not receipt["_created"]:
+        if receipt["status"] == "completed":
+            return {"receipt_id": receipt["id"], "status": "completed",
+                    "result": json.loads(receipt["result_json"])}
+        if receipt["status"] == "failed":
+            raise RuntimeError("this idempotent operation already failed; inspect its receipt")
+        return {"receipt_id": receipt["id"], "status": "started",
+                "message": "Outcome is uncertain; reconcile before retrying"}
+    try:
+        result = permit.adapter.execute(
+            permit.operation, {"path": intent["path"], "content": intent["content"]},
+            permit.context,
+        )
+        finalized = store.finish_execution_receipt(
+            task_id, lease_token, receipt["id"], result=result.data,
+        )
+        return {"receipt_id": finalized["id"], "status": finalized["status"],
+                "result": result.data}
+    except Exception as exc:
+        store.finish_execution_receipt(
+            task_id, lease_token, receipt["id"], error=str(exc)[:2000],
+        )
+        raise
 
 
 @mcp.tool()
