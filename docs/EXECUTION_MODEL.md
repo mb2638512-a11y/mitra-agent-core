@@ -33,4 +33,4 @@ The current read adapter exposes only the per-instance `workspace` directory thr
 
 ## Not enabled yet
 
-No capability executor is connected. The worker lifecycle does not execute arbitrary code or external actions. Next gates are external identity-provider integration, process worker loop, capability allowlists, per-step execution receipts, OAuth adapters and mock-service integration tests. Each executor must enforce policy immediately before side effects.
+There is no general-purpose background executor. The only side-effecting adapter currently exposed is the explicit, task-bound filesystem text write inside the instance workspace. It checks a live lease, ready capability, operation allowlist and minimum risk, then records a durable idempotency receipt. It does not run arbitrary code or external actions. Next gates are an independently supervised worker, authenticated host identity, OAuth adapters, provider-side idempotency and mock-service integration tests.
