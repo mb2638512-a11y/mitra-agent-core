@@ -25,6 +25,24 @@ def _validate_endpoint(value: str, label: str) -> None:
         raise ValueError(f"{label} must use HTTPS (HTTP is allowed only for localhost callbacks)")
 
 
+def _validate_provider_hosts(provider: str, authorization_endpoint: str, token_endpoint: str) -> None:
+    allowed = {
+        item.strip().lower()
+        for item in os.getenv("MITRA_OAUTH_ALLOWED_HOSTS", "").split(",")
+        if item.strip()
+    }
+    if provider == "google":
+        allowed.update({"accounts.google.com", "oauth2.googleapis.com"})
+    hosts = {
+        urllib.parse.urlparse(authorization_endpoint).hostname,
+        urllib.parse.urlparse(token_endpoint).hostname,
+    }
+    if not hosts.issubset(allowed):
+        raise PermissionError(
+            "OAuth provider endpoints are not allowlisted; configure MITRA_OAUTH_ALLOWED_HOSTS"
+        )
+
+
 def start_oauth_flow(
     vault: CredentialVault,
     *,
@@ -42,6 +60,7 @@ def start_oauth_flow(
     _validate_endpoint(authorization_endpoint, "authorization endpoint")
     _validate_endpoint(token_endpoint, "token endpoint")
     _validate_endpoint(redirect_uri, "redirect URI")
+    _validate_provider_hosts(provider, authorization_endpoint, token_endpoint)
     if not isinstance(client_id, str) or not client_id.strip() or len(client_id) > 500:
         raise ValueError("client_id must contain 1-500 characters")
     if (not scopes or len(scopes) > 100
