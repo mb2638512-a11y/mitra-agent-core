@@ -5,6 +5,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+import urllib.parse
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -35,8 +36,11 @@ class OpenAICompatibleProvider:
         self.model = model.strip()
         self.api_key_env = api_key_env.strip()
         self.timeout_seconds = timeout_seconds
-        if not self.base_url.startswith(("https://", "http://")):
-            raise ValueError("base_url must be an HTTP(S) URL")
+        parsed = urllib.parse.urlparse(self.base_url)
+        local_http = parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+        if (not parsed.hostname or parsed.username or parsed.password or parsed.fragment
+                or (parsed.scheme != "https" and not local_http)):
+            raise ValueError("model provider URLs must use HTTPS; HTTP is allowed only for loopback")
         if not self.model or not self.api_key_env:
             raise ValueError("model and api_key_env are required")
         if not 1 <= timeout_seconds <= 180:
