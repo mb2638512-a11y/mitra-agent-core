@@ -2,31 +2,28 @@
 
 ## Current milestone
 
-MITRA now defines a model-independent plan contract and a guarded task-state transition policy. A compatible host model can propose a plan; MITRA validates its shape and classifies each step by risk. The primitives deliberately do not run commands, browse sites, send messages, move money or mutate third-party systems.
+MITRA has a model-independent plan contract and a durable SQLite task queue. Tasks survive process restarts, worker claims use an atomic transaction, leases expire, retry budgets are bounded, and lifecycle events are recorded. The queue is an orchestration primitive: it does not itself run shell commands, browse sites, send messages, move money or mutate third-party systems.
 
 ## Plan contract
 
-A plan contains:
-- one objective;
-- 1–20 measurable success criteria;
-- 1–30 steps;
-- a capability name and risk level per step.
+A plan contains one objective, 1–20 measurable success criteria, and 1–30 steps. Each step has a capability name and risk level: `read`, `write`, `external`, `financial` or `destructive`. Non-read steps require an approval gate.
 
-Risk levels are `read`, `write`, `external`, `financial` and `destructive`. Non-read steps are marked as requiring approval by default.
-
-## Task lifecycle
+## Durable task lifecycle
 
 `queued → planning → awaiting_approval → running → verifying → completed`
 
-Planning may move directly to running only for read-only work. Failed and cancelled states are terminal. Verification may return to running for a bounded correction cycle in a future executor implementation.
+A worker claims one queued task and receives a random lease token. The claim only moves the task into planning. Starting a high-impact task without an approver label moves it to `awaiting_approval`. A later start call must supply an approver label; that label is recorded in the task event log. This is an auditable *claim*, not verified human identity: a production host must authenticate the approving user and bind the identity to the approval request before enabling real side-effect adapters.
 
-The current engine validates transitions and approval gates; it is not yet a worker queue. No task is autonomously executed by these primitives.
+Workers must retain the lease token to start, verify and finish a task. Expired leases can be recovered; tasks are requeued only while retry budget remains. Idempotency keys prevent duplicate task creation for the same caller-supplied request key. Cancellation revokes the active lease. Retry delays are bounded to one day and attempts are capped at ten.
 
-## Next implementation gates
+## MCP queue tools
 
-1. Persist plan JSON, transition history and approval identity.
-2. Add bounded worker leases, idempotency keys, timeouts, retry budgets and cancellation.
-3. Add provider adapters with secrets supplied only through environment variables or an OS secret store.
-4. Add capability-specific executors. Each executor must enforce policy immediately before side effects.
-5. Add OAuth integrations with minimal scopes and revocation support.
-6. Add integration tests using mock services before enabling real accounts.
+- `mitra_claim_task`: atomically claim one queued task for planning.
+- `mitra_start_task`: start a task after risk policy checks; high-impact tasks need an approver label.
+- `mitra_begin_verification` and `mitra_finish_task`: explicit verification/finalization.
+- `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases`.
+- `mitra_task_events`: read the task audit history.
+
+## Not enabled yet
+
+No capability executor is connected. The worker lifecycle does not execute arbitrary code or external actions. Next gates are authenticated approval records, heartbeat/lease renewal, process worker loop, capability allowlists, per-step execution receipts, OAuth adapters and mock-service integration tests. Each executor must enforce policy immediately before side effects.
