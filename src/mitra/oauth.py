@@ -163,6 +163,81 @@ def complete_oauth_flow(
             or not isinstance(token_data.get("access_token"), str)
             or not token_data["access_token"]):
         raise RuntimeError("OAuth token response did not contain a valid access token")
-    metadata = vault.put(pending["provider"], pending["account_id"], token_data)
+    stored = dict(token_data)
+    expires_in = token_data.get("expires_in")
+    if isinstance(expires_in, (int, float)) and expires_in > 0:
+        stored["expires_at"] = int(time.time() + expires_in)
+    stored["_mitra_oauth"] = {
+        "client_id": pending["client_id"],
+        "token_endpoint": pending["token_endpoint"],
+        "client_secret_env": client_secret_env or "",
+    }
+    metadata = vault.put(pending["provider"], pending["account_id"], stored)
     vault.delete("_oauth_pending", state)
     return metadata
+
+
+def refresh_oauth_token(
+    vault: CredentialVault, *, provider: str, account_id: str,
+) -> str:
+    """Return a valid access token, refreshing it through stored OAuth client metadata."""
+    stored = vault.get(provider, account_id)
+    if stored is None:
+        raise PermissionError("no OAuth credentials are stored for this account")
+    access_token = stored.get("access_token")
+    expires_at = stored.get("expires_at", 0)
+    if isinstance(access_token, str) and access_token and isinstance(expires_at, (int, float)):
+        if expires_at > time.time() + 60:
+            return access_token
+    refresh_token = stored.get("refresh_token")
+    metadata = stored.get("_mitra_oauth")
+    if not isinstance(refresh_token, str) or not refresh_token or not isinstance(metadata, dict):
+        raise PermissionError("OAuth token expired and no refresh credentials are available")
+    token_endpoint = metadata.get("token_endpoint")
+    client_id = metadata.get("client_id")
+    if not isinstance(token_endpoint, str) or not isinstance(client_id, str):
+        raise PermissionError("stored OAuth refresh metadata is incomplete")
+    _validate_endpoint(token_endpoint, "token endpoint")
+    _validate_provider_hosts(provider, token_endpoint, token_endpoint)
+    form = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": client_id,
+    }
+    secret_env = metadata.get("client_secret_env")
+    if secret_env:
+        if not isinstance(secret_env, str) or not secret_env.isidentifier():
+            raise PermissionError("stored OAuth client secret reference is invalid")
+        secret = os.environ.get(secret_env)
+        if not secret:
+            raise RuntimeError("OAuth client secret environment variable is not set")
+        form["client_secret"] = secret
+    request = urllib.request.Request(
+        token_endpoint,
+        data=urllib.parse.urlencode(form).encode("utf-8"),
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            raw = response.read(65537)
+        if len(raw) > 65536:
+            raise RuntimeError("OAuth refresh response exceeds 64 KB")
+        refreshed = json.loads(raw.decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"OAuth refresh endpoint returned HTTP {exc.code}") from None
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError(f"OAuth refresh failed: {type(exc).__name__}") from None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise RuntimeError("OAuth refresh endpoint returned invalid JSON") from None
+    if not isinstance(refreshed, dict) or not isinstance(refreshed.get("access_token"), str):
+        raise RuntimeError("OAuth refresh response did not contain a valid access token")
+    updated = dict(stored)
+    updated.update(refreshed)
+    updated.setdefault("refresh_token", refresh_token)
+    lifetime = refreshed.get("expires_in")
+    if isinstance(lifetime, (int, float)) and lifetime > 0:
+        updated["expires_at"] = int(time.time() + lifetime)
+    updated["_mitra_oauth"] = metadata
+    vault.put(provider, account_id, updated)
+    return updated["access_token"]
