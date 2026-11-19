@@ -176,7 +176,6 @@ class Store:
         task = self.get_task(task_id)
         if task is None:
             raise ValueError('Task not found')
-        claims = verify_approval_token(approval_token, task_id, secret, intent_fingerprint=approval_fingerprint(task))
         now = datetime.now(timezone.utc)
         now_text = now.isoformat()
         worker_token = str(uuid.uuid4())
@@ -187,6 +186,10 @@ class Store:
                 raise ValueError("Task not found")
             if row["status"] != "awaiting_approval":
                 raise ValueError("task is not awaiting approval")
+            claims = verify_approval_token(
+                approval_token, task_id, secret,
+                intent_fingerprint=approval_fingerprint(dict(row)),
+            )
             try:
                 db.execute(
                     "INSERT INTO used_approval_nonces(nonce, task_id, used_at) VALUES (?, ?, ?)",
