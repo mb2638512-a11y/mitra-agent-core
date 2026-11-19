@@ -168,6 +168,19 @@ def mitra_approve_task(task_id: str, approved_by: str, lease_seconds: int = 60) 
 
 
 @mcp.tool()
+def mitra_heartbeat_task(task_id: str, lease_token: str, lease_seconds: int = 60) -> dict:
+    """Renew a valid worker lease before it expires."""
+    task = store.renew_lease(task_id, lease_token, lease_seconds=lease_seconds)
+    return {"task_id": task["id"], "status": task["status"], "lease_until": task["lease_until"]}
+
+
+@mcp.tool()
+def mitra_queue_stats() -> dict:
+    """Return counts of tasks in each lifecycle state."""
+    return store.queue_stats()
+
+
+@mcp.tool()
 def mitra_begin_verification(task_id: str, lease_token: str) -> dict:
     """Mark a running task as ready for independent result verification."""
     return store.begin_verification(task_id, lease_token)
