@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from mitra.security import RiskLevel
+from mitra.registry import get_capability
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,12 @@ class TaskPlan:
                 raise ValueError("step risk must be read, write, external, financial or destructive") from exc
             if not description or len(description) > 1000 or not capability or len(capability) > 100:
                 raise ValueError("each step needs a description (1-1000) and capability (1-100)")
+            registered = get_capability(capability)
+            if registered is None:
+                raise ValueError("unknown capability: " + capability)
+            risk_order = {RiskLevel.READ: 0, RiskLevel.WRITE: 1, RiskLevel.EXTERNAL: 2, RiskLevel.FINANCIAL: 3, RiskLevel.DESTRUCTIVE: 4}
+            if risk_order[risk] < risk_order[registered.risk]:
+                raise ValueError("step risk is below capability minimum: " + registered.risk.value)
             steps.append(PlanStep(
                 id=str(item.get("id") or f"step-{index}"),
                 description=description,
