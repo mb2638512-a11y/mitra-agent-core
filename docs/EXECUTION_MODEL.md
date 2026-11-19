@@ -22,9 +22,11 @@ Workers must retain the lease token to start, verify and finish a task. Expired 
 - `mitra_start_task`: start read-only work or place high-impact work into the approval queue.
 - `mitra_approve_task`: record the host-claimed approver label and issue a fresh lease.
 - `mitra_begin_verification` and `mitra_finish_task`: explicit verification/finalization.
+- `mitra_heartbeat_task`: renew an unexpired lease while work is in progress.
+- `mitra_queue_stats`: count tasks by lifecycle state.
 - `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases`.
 - `mitra_task_events`: read the task audit history.
 
 ## Not enabled yet
 
-No capability executor is connected. The worker lifecycle does not execute arbitrary code or external actions. Next gates are authenticated approval records, heartbeat/lease renewal, process worker loop, capability allowlists, per-step execution receipts, OAuth adapters and mock-service integration tests. Each executor must enforce policy immediately before side effects.
+No capability executor is connected. The worker lifecycle does not execute arbitrary code or external actions. Next gates are authenticated approval records, process worker loop, capability allowlists, per-step execution receipts, OAuth adapters and mock-service integration tests. Each executor must enforce policy immediately before side effects.
