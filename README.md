@@ -25,7 +25,7 @@ python -m pip install -e ".[dev]"
 mitra setup --name my-agent --instance-id my-agent
 ```
 
-The command initializes an isolated MITRA instance and prints a portable MCP configuration. To merge it into a host config automatically, use `mitra setup --name my-agent --config /path/to/mcp-config.json`. See [Universal host setup](docs/HOST_SETUP.md).
+The command initializes an isolated MITRA instance and prints a portable MCP configuration. To merge it into a host config automatically, use `mitra setup --name my-agent --instance-id my-agent --config /path/to/mcp-config.json`. See [Universal host setup](docs/HOST_SETUP.md).
 
 The default server uses **stdio**: the MCP host launches MITRA as a subprocess. No port, frontend or cloud account is needed.
 
