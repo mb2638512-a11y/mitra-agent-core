@@ -54,7 +54,7 @@ def issue_approval_token(
 ) -> str:
     """Create a task-bound HMAC token. The secret must come from a trusted local environment."""
     if not secret or len(secret) < 32:
-        raise ValueError("MITRA_APPROVAL_SECRET must contain at least 32 characters")
+        raise ValueError("approval signing key must contain at least 32 characters")
     if not task_id or not approver.strip() or len(approver) > 200:
         raise ValueError("task_id and a 1-200 character approver are required")
     if len(intent_fingerprint) != 64 or any(c not in "0123456789abcdef" for c in intent_fingerprint):
