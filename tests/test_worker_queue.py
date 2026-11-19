@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from mitra.store import Store
+from mitra.security import issue_approval_token
 
 
 def test_atomic_queue_lifecycle_and_audit(tmp_path: Path):
@@ -31,9 +32,13 @@ def test_high_impact_task_waits_for_explicit_approval(tmp_path: Path):
     gated = store.start_task(task["id"], claimed["lease_token"])
     assert gated["status"] == "awaiting_approval"
     assert gated["lease_token"] is None
-    approved = store.approve_task(task["id"], "local-host-user")
+    secret = "approval-secret-for-tests-only-123456"
+    approval = issue_approval_token(task["id"], "local-host-user", secret)
+    approved = store.approve_task(task["id"], approval, secret)
     assert approved["status"] == "running"
     assert store.task_events(task["id"])[0]["event"] == "approved_and_started"
+    with pytest.raises(PermissionError, match="already been used"):
+        store.approve_task(task["id"], approval, secret)
 
 
 def test_idempotency_key_prevents_duplicate_task(tmp_path: Path):
