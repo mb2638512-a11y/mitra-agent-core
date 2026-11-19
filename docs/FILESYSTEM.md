@@ -9,6 +9,7 @@ This is a defense-in-depth boundary, not an operating-system sandbox. The user
 running MITRA still controls the process and its files. Do not expose the workspace
 to untrusted users or run MITRA with elevated privileges.
 
-Filesystem writes remain planned. A plain boolean or model-generated
-`approved=true` is not proof of human authorization; write support will wait
-for authenticated, replay-resistant approval tokens and audit receipts.
+Filesystem writes remain planned. High-impact task approval now uses a short-lived,
+task-bound HMAC token with a single-use nonce. The token demonstrates possession
+of the local approval secret, not third-party identity; a future write adapter must
+still add strict allowlists, atomic writes, audit receipts and tests.
