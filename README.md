@@ -50,6 +50,7 @@ Each instance has its own local database. A host must support MCP and allow loca
 ## MCP tools in v0.1
 
 - `mitra_status` — instance identity and subsystem status.
+- `mitra_fs_list`, `mitra_fs_read` — read-only access to the instance workspace; paths are confined, symlinks rejected and UTF-8 reads capped at 1 MB.
 - `mitra_capabilities`, `mitra_get_capability` — machine-readable registry, status, risk and required scopes.
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
 - `mitra_save_memory`, `mitra_search_memory` — instance-local memory.
@@ -62,6 +63,10 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_heartbeat_task`, `mitra_queue_stats` — lease renewal and queue health.
 - `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases` — retry, cancellation and crash recovery.
 - `mitra_task_events` — task lifecycle audit history.
+
+## Scoped workspace
+
+Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects absolute paths, traversal and symlinks; it reads UTF-8 text only and enforces a 1 MB limit. Filesystem writes remain disabled until authenticated approvals are implemented. See [Filesystem access](docs/FILESYSTEM.md).
 
 ## Capability registry
 
