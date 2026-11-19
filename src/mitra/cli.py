@@ -49,7 +49,7 @@ def create_approval_token(task_id: str, approver: str, expires_in: int) -> int:
         raise SystemExit(str(exc)) from exc
     print("One-time approval token (share only with this MITRA instance):")
     print(token)
-    print(f"Expires in {expires_in} seconds. Keep MITRA_APPROVAL_SECRET private.")
+    print(f"Expires in {expires_in} seconds. Keep the local approval.key file private.")
     return 0
 
 
