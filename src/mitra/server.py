@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 from mcp.server import MCPServer
 
 from mitra import __version__
