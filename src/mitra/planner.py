@@ -11,7 +11,7 @@ from typing import Any
 
 from mitra.security import RiskLevel
 from mitra.registry import get_capability, list_capabilities
-from mitra.providers import ChatMessage, ModelProvider
+from mitra.providers import ChatMessage, ModelProvider, ModelRouter
 
 
 @dataclass(frozen=True)
@@ -91,7 +91,7 @@ class TaskPlan:
 
 
 
-def draft_plan(provider: ModelProvider, objective: str) -> dict[str, Any]:
+def draft_plan(provider: ModelProvider | ModelRouter, objective: str, *, route: str | None = None) -> dict[str, Any]:
     """Ask an optional model for a plan, then strictly validate it without executing it."""
     clean = objective.strip() if isinstance(objective, str) else ""
     if not clean or len(clean) > 2000:
@@ -116,7 +116,7 @@ def draft_plan(provider: ModelProvider, objective: str) -> dict[str, Any]:
         ),
         ChatMessage(role="user", content=clean),
     ]
-    reply = provider.complete(messages)
+    reply = provider.complete(messages, route=route) if isinstance(provider, ModelRouter) else provider.complete(messages)
     try:
         raw = json.loads(reply.content)
     except (TypeError, json.JSONDecodeError) as exc:
