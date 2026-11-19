@@ -11,10 +11,14 @@ from mitra.planner import TaskPlan
 from mitra.engine import validate_transition
 from mitra.store import Store
 from mitra.registry import get_capability, list_capabilities
-from mitra.filesystem import Workspace
+from mitra.adapters import AdapterContext, AdapterRegistry
+from mitra.filesystem import FilesystemReadAdapter
 
 config = InstanceConfig.load()
-workspace = Workspace(config.data_dir / "workspace")
+adapter_context = AdapterContext(config.instance_id, config.data_dir)
+adapters = AdapterRegistry()
+adapters.register(FilesystemReadAdapter())
+filesystem_adapter = adapters.get("filesystem-read")
 store = Store(config.data_dir / "mitra.sqlite3")
 mcp = MCPServer(
     "MITRA",
@@ -66,13 +70,15 @@ def mitra_get_capability(capability_id: str) -> dict:
 @mcp.tool()
 def mitra_fs_list(path: str = ".", limit: int = 100) -> list[dict]:
     """List entries inside this MITRA instance's read-only workspace."""
-    return workspace.list_files(path, limit=limit)
+    result = filesystem_adapter.execute("list", {"path": path, "limit": limit}, adapter_context)
+    return result.data
 
 
 @mcp.tool()
 def mitra_fs_read(path: str) -> dict:
     """Read a UTF-8 text file inside this instance's read-only workspace (max 1 MB)."""
-    return workspace.read_text(path)
+    result = filesystem_adapter.execute("read", {"path": path}, adapter_context)
+    return result.data
 
 
 @mcp.tool()
