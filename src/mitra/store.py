@@ -173,9 +173,6 @@ class Store:
 
         if not 5 <= lease_seconds <= 3600:
             raise ValueError("lease_seconds must be between 5 and 3600")
-        task = self.get_task(task_id)
-        if task is None:
-            raise ValueError('Task not found')
         now = datetime.now(timezone.utc)
         now_text = now.isoformat()
         worker_token = str(uuid.uuid4())
