@@ -34,3 +34,8 @@ The current read adapter exposes only the per-instance `workspace` directory thr
 ## Not enabled yet
 
 There is no general-purpose background executor. The only side-effecting adapter currently exposed is the explicit, task-bound filesystem text write inside the instance workspace. It checks a live lease, ready capability, operation allowlist and minimum risk, then records a durable idempotency receipt. It does not run arbitrary code or external actions. Next gates are an independently supervised worker, authenticated host identity, OAuth adapters, provider-side idempotency and mock-service integration tests.
+
+
+## Optional model planning
+
+When an OpenAI-compatible provider is configured, `mitra_draft_plan` asks it for a JSON proposal. MITRA parses the response strictly, validates the plan schema, and rejects any step that references a capability without a ready adapter. The prompt includes only ready adapter-backed capabilities. Model output is untrusted: it cannot register tools, lower risk, approve a task or execute a step. A proposed write must still be translated into a specific task intent and pass the local signed-approval flow.
