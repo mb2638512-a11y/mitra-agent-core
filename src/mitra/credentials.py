@@ -6,9 +6,10 @@ import json
 import os
 import secrets
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -26,7 +27,7 @@ class CredentialVault:
         self.database.parent.mkdir(parents=True, exist_ok=True)
         key = self._load_or_create_key()
         self._cipher = AESGCM(key)
-        with self._connect() as db:
+        with self._connection() as db:
             db.execute(
                 """CREATE TABLE IF NOT EXISTS credentials (
                     provider TEXT NOT NULL,
@@ -64,6 +65,15 @@ class CredentialVault:
         db = sqlite3.connect(self.database, timeout=10)
         db.row_factory = sqlite3.Row
         return db
+
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        db = self._connect()
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def _aad(self, provider: str, account_id: str) -> bytes:
         return f"MITRA:vault:{self.instance_id}:{provider}:{account_id}".encode("utf-8")
