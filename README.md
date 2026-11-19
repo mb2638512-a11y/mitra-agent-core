@@ -54,6 +54,8 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_execute_workspace_write` — perform a task-bound, approved text write inside the workspace.
 - `mitra_execution_receipts` — inspect durable, idempotent operation receipts.
 - `mitra_model_status` — inspect configured model providers and fallback routes without exposing credentials.
+- `mitra_credential_accounts` — list connected provider/account metadata without exposing tokens.
+- `mitra_oauth_start`, `mitra_oauth_complete` — user-consented OAuth 2.0 PKCE flow with encrypted local token storage.
 - `mitra_capabilities`, `mitra_get_capability` — machine-readable registry, status, risk and required scopes.
 - `mitra_adapter_status` — inspect the explicit adapters registered in this MITRA process.
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
@@ -117,6 +119,14 @@ Set-ExecutionPolicy -Scope Process Bypass
 ```
 
 The script creates a local virtual environment, installs the project and development dependencies, runs pytest, then runs Ruff. It does not start external integrations or modify files outside the repository's local workspace.
+
+## Credential vault and OAuth foundation
+
+MITRA stores provider credentials in a per-instance SQLite vault encrypted with AES-256-GCM. The 256-bit vault key is kept separately in `vault.key` with private file permissions. Ciphertext is authenticated against the MITRA instance ID, provider and account ID. The MCP metadata tool never returns token contents.
+
+The OAuth tools implement Authorization Code with PKCE (S256). The user must supply their provider's OAuth client ID, authorization/token endpoints, redirect URI and exact scopes, then personally approve access in the provider's consent screen. The PKCE verifier and state are stored encrypted locally; authorization codes are exchanged server-side and tokens are saved in the vault.
+
+This is an OAuth foundation, not a finished Gmail or Calendar adapter. MITRA does not create consumer mailboxes, ask for account passwords or silently grant access. Gmail and Calendar API operations remain planned until their scopes, API methods, refresh lifecycle, revocation and mock-service tests are implemented.
 
 ## Model routing
 
