@@ -54,23 +54,29 @@ def create_approval_token(task_id: str, approver: str, expires_in: int) -> int:
 
 
 def default_host_config(host: str) -> Path:
-    if host == "claude-desktop":
-        if sys.platform == "win32":
-            base = Path(os.getenv("APPDATA", Path.home() / "AppData/Roaming"))
-            return base / "Claude" / "claude_desktop_config.json"
-        if sys.platform == "darwin":
-            return Path.home() / "Library/Application Support/Claude/claude_desktop_config.json"
-        return Path.home() / ".config/Claude/claude_desktop_config.json"
     if host == "cursor":
         return Path.home() / ".cursor" / "mcp.json"
-    raise ValueError(f"Unsupported host: {host}")
+    raise ValueError(f"Unsupported host shortcut: {host}. Use --config for any MCP host.")
 
 
-def connect_host(host: str, custom_path: str | None = None) -> int:
+def mcp_config_entry() -> dict:
+    """Return the portable MCP client entry for the active MITRA instance."""
     config = InstanceConfig.load()
-    config_path = Path(custom_path).expanduser() if custom_path else default_host_config(host)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
+    env = {"MITRA_INSTANCE_ID": config.instance_id}
+    if os.getenv("MITRA_HOME"):
+        env["MITRA_HOME"] = os.environ["MITRA_HOME"]
+    return {"command": sys.executable, "args": ["-m", "mitra.cli", "serve"], "env": env}
 
+
+def connect_host(custom_path: str | None = None, host: str | None = None) -> int:
+    if custom_path:
+        config_path = Path(custom_path).expanduser()
+    elif host:
+        config_path = default_host_config(host)
+    else:
+        raise SystemExit("Choose --config PATH for any MCP host, or an explicit --host shortcut.")
+    config = InstanceConfig.load()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     existing = {}
     if config_path.exists():
         try:
@@ -79,48 +85,54 @@ def connect_host(host: str, custom_path: str | None = None) -> int:
             raise SystemExit(f"Cannot safely edit invalid JSON at {config_path}: {exc}") from exc
     if not isinstance(existing, dict):
         raise SystemExit(f"Expected a JSON object in {config_path}")
-
     servers = existing.setdefault("mcpServers", {})
     if not isinstance(servers, dict):
-        raise SystemExit(f"'mcpServers' must be a JSON object in {config_path}")
-
-    entry = {
-        "command": sys.executable,
-        "args": ["-m", "mitra.cli", "serve"],
-        "env": {"MITRA_INSTANCE_ID": config.instance_id},
-    }
-    if os.getenv("MITRA_HOME"):
-        entry["env"]["MITRA_HOME"] = os.environ["MITRA_HOME"]
-    servers["mitra"] = entry
-
+        raise SystemExit("'mcpServers' must be a JSON object in the selected config")
+    servers["mitra"] = mcp_config_entry()
     temporary = config_path.with_suffix(config_path.suffix + ".tmp")
     temporary.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
     temporary.replace(config_path)
     print(f"Connected MITRA instance '{config.instance_id}' in {config_path}")
-    print("Restart or reload the MCP host to discover MITRA tools.")
+    print("Reload the MCP client to discover MITRA tools.")
     return 0
 
+
+def universal_setup(name: str, config_path: str | None = None) -> int:
+    """One-command bootstrap for any MCP-compatible agent."""
+    init_instance(name)
+    if config_path:
+        return connect_host(custom_path=config_path)
+    print("\nUniversal MCP client configuration (JSON):")
+    print(json.dumps({"mcpServers": {"mitra": mcp_config_entry()}}, indent=2))
+    print("\nPaste this into the MCP configuration of any compatible agent.")
+    print("For automatic installation into a config file, rerun with --config PATH.")
+    return 0
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="mitra", description="MITRA Universal Agent Core")
     sub = parser.add_subparsers(dest="command")
     init = sub.add_parser("init", help="initialize this agent's isolated profile")
     init.add_argument("--name", default="My MITRA Agent")
+    setup = sub.add_parser("setup", help="universal one-command setup for any MCP-compatible agent")
+    setup.add_argument("--name", default="My Agent")
+    setup.add_argument("--config", help="optional MCP client JSON config path to update")
     approval = sub.add_parser("approve-token", help="issue a short-lived local approval token")
     approval.add_argument("--task-id", required=True)
     approval.add_argument("--approver", required=True)
     approval.add_argument("--expires-in", type=int, default=300)
     sub.add_parser("serve", help="start the MCP server over stdio")
     sub.add_parser("serve-http", help="start an opt-in local Streamable HTTP MCP server")
-    connect = sub.add_parser("connect", help="add MITRA to a supported host MCP config")
-    connect.add_argument("--host", choices=["claude-desktop", "cursor"], default="claude-desktop")
-    connect.add_argument("--config", help="custom MCP JSON config path (overrides host default)")
+    connect = sub.add_parser("connect", help="connect MITRA to any MCP-compatible client")
+    connect.add_argument("--config", help="MCP client JSON config path")
+    connect.add_argument("--host", choices=["cursor"], help="optional known-host shortcut")
     args = parser.parse_args()
 
     if args.command == "init":
         raise SystemExit(init_instance(args.name))
+    if args.command == "setup":
+        raise SystemExit(universal_setup(args.name, args.config))
     if args.command == "connect":
-        raise SystemExit(connect_host(args.host, args.config))
+        raise SystemExit(connect_host(custom_path=args.config, host=args.host))
     if args.command == "approve-token":
         raise SystemExit(create_approval_token(args.task_id, args.approver, args.expires_in))
     if args.command == "serve":
