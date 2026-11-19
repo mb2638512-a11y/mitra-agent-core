@@ -29,10 +29,11 @@ def test_external_step_requires_approval_flag():
     assert plan.steps[0].requires_approval
 
 
-def test_running_requires_explicit_approval_for_external():
-    with pytest.raises(PermissionError):
+def test_running_requires_signed_approval_flow_for_external():
+    with pytest.raises(PermissionError, match="authenticated approval"):
+        validate_transition("planning", "running", risk=RiskLevel.EXTERNAL)
+    with pytest.raises(PermissionError, match="mitra_approve_task"):
         validate_transition("awaiting_approval", "running", risk=RiskLevel.EXTERNAL)
-    validate_transition("awaiting_approval", "running", approved=True, risk=RiskLevel.EXTERNAL)
 
 
 def test_terminal_state_cannot_restart():
