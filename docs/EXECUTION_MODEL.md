@@ -12,7 +12,7 @@ A plan contains one objective, 1–20 measurable success criteria, and 1–30 st
 
 `queued → planning → awaiting_approval → running → verifying → completed`
 
-A worker claims one queued task and receives a random lease token. The claim only moves the task into planning. Starting a high-impact task moves it to `awaiting_approval`. A local user issues a short-lived HMAC approval token using `mitra approve-token`; `mitra_approve_task` verifies that the token is signed by the configured local secret, bound to the exact task, unexpired and unused. The nonce is consumed transactionally in SQLite before a fresh worker lease is issued. This proves possession of the local secret, not identity from an external identity provider.
+A worker claims one queued task and receives a random lease token. The claim only moves the task into planning. Starting a high-impact task moves it to `awaiting_approval`. A local user issues a short-lived HMAC approval token using `mitra approve-token`; MITRA signs it with a per-instance key stored in the private local data directory (not in MCP host configuration). `mitra_approve_task` verifies that the token is signed, bound to the exact task, unexpired and unused. The nonce is consumed transactionally in SQLite before a fresh worker lease is issued. This proves possession of the local secret, not identity from an external identity provider.
 
 Workers must retain the lease token to start, verify and finish a task. Expired leases can be recovered; tasks are requeued only while retry budget remains. Idempotency keys prevent duplicate task creation for the same caller-supplied request key. Cancellation revokes the active lease. Retry delays are bounded to one day and attempts are capped at ten.
 
