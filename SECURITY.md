@@ -6,7 +6,7 @@
 - Instance IDs are validated to prevent path traversal.
 - No secrets or OAuth tokens are included in the repository.
 - Task creation records intent only; it does not send email, spend money or modify third-party services.
-- High-impact operations are default-denied until a complete approval and audit flow exists.
+- High-impact task transitions are default-denied unless a short-lived, task-intent-bound approval token is verified and consumed. No external side-effect adapter is enabled.
 
 ## Before enabling integrations
 
