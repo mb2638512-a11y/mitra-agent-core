@@ -50,11 +50,11 @@ Each instance has its own local database. A host must support MCP and allow loca
 ## MCP tools in v0.1
 
 - `mitra_status` — instance identity and subsystem status.
-- `mitra_capabilities` — capability readiness and roadmap status.
+- `mitra_capabilities`, `mitra_get_capability` — machine-readable registry, status, risk and required scopes.
 - `mitra_create_task`, `mitra_list_tasks`, `mitra_get_task` — local task ledger.
 - `mitra_save_memory`, `mitra_search_memory` — instance-local memory.
 - `mitra_check_permission` — inspect default risk policy; does not authorize an external action.
-- `mitra_validate_plan` — validate a structured plan and risk-tagged steps.
+- `mitra_validate_plan` — validate a structured plan against registered capabilities and minimum risk levels.
 - `mitra_check_transition` — preview a task-state change and approval gate.
 - `mitra_claim_task`, `mitra_start_task` — durable worker claims and risk-gated start.
 - `mitra_approve_task` — record an approval label and issue a fresh lease.
@@ -62,6 +62,10 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_heartbeat_task`, `mitra_queue_stats` — lease renewal and queue health.
 - `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases` — retry, cancellation and crash recovery.
 - `mitra_task_events` — task lifecycle audit history.
+
+## Capability registry
+
+MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed.
 
 ## Optional model provider
 
