@@ -58,7 +58,7 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_validate_plan` — validate a structured plan against registered capabilities and minimum risk levels.
 - `mitra_check_transition` — preview a task-state change and approval gate.
 - `mitra_claim_task`, `mitra_start_task` — durable worker claims and risk-gated start.
-- `mitra_approve_task` — record an approval label and issue a fresh lease.
+- `mitra_approve_task` — verify and consume a signed, task-bound, single-use approval token before issuing a fresh lease.
 - `mitra_begin_verification`, `mitra_finish_task` — explicit task verification/finalization.
 - `mitra_heartbeat_task`, `mitra_queue_stats` — lease renewal and queue health.
 - `mitra_retry_task`, `mitra_cancel_task`, `mitra_recover_expired_leases` — retry, cancellation and crash recovery.
@@ -66,11 +66,23 @@ Each instance has its own local database. A host must support MCP and allow loca
 
 ## Scoped workspace
 
-Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects absolute paths, traversal and symlinks; it reads UTF-8 text only and enforces a 1 MB limit. Filesystem writes remain disabled until authenticated approvals are implemented. See [Filesystem access](docs/FILESYSTEM.md).
+Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects absolute paths, traversal and symlinks; it reads UTF-8 text only and enforces a 1 MB limit. Filesystem writes remain disabled until an allowlisted write adapter is added. See [Filesystem access](docs/FILESYSTEM.md).
 
 ## Capability registry
 
 MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed.
+
+## Authenticated local approvals
+
+High-impact tasks cannot be started with an `approved_by` label. Configure a private `MITRA_APPROVAL_SECRET` of at least 32 characters in the local environment used by both the CLI and MCP host. Keep it out of source control and never paste it into an agent prompt. When a task reaches `awaiting_approval`, the local user issues a short-lived token:
+
+```powershell
+# Windows PowerShell; use the same instance ID as the MCP host
+$env:MITRA_APPROVAL_SECRET = "replace-with-a-long-random-secret-at-least-32-chars"
+mitra approve-token --task-id TASK_ID --approver "Your local identity"
+```
+
+Pass the resulting one-time token to `mitra_approve_task`. Tokens are HMAC-signed, bound to one task, expire within 30–600 seconds, and their nonce is consumed once in SQLite. This authenticates possession of the local secret, not a remote identity provider; protect the host account and secret accordingly.
 
 ## Optional model provider
 
@@ -98,7 +110,7 @@ Override with `MITRA_HOME`. Do not commit instance data, OAuth tokens or API key
 
 ## Current scope
 
-This is the first foundation, not finished AGI. The durable queue manages task state but does not execute external actions. Approver labels are host-claimed metadata, not authenticated identity. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls remain planned adapter modules and require authenticated authorization, scoped credentials, audit trails and tests before production use.
+This is the first foundation, not finished AGI. The durable queue manages task state but does not execute external actions. Gated task approval now requires a short-lived HMAC token bound to the task and a single-use nonce. This proves possession of the local approval secret, not identity through an external identity provider. Gmail, browser automation, autonomous sales, payment operations, multi-agent delegation, model routing and enterprise controls remain planned adapter modules and require scoped credentials, audit trails and tests before production use.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution model](docs/EXECUTION_MODEL.md)
