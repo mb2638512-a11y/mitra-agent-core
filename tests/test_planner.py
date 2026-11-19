@@ -3,6 +3,8 @@ import pytest
 from mitra.engine import validate_transition
 from mitra.planner import TaskPlan
 from mitra.security import RiskLevel
+from mitra.planner import draft_plan
+from mitra.providers import ModelReply
 
 
 def test_plan_validates_and_normalizes_steps():
@@ -54,3 +56,39 @@ def test_plan_cannot_understate_registered_capability_risk():
             "objective": "Send email", "success_criteria": ["Sent"],
             "steps": [{"description": "Send", "capability": "gmail", "risk": "read"}],
         })
+
+
+
+class FakeProvider:
+    def __init__(self, content: str):
+        self.content = content
+        self.messages = None
+
+    def complete(self, messages):
+        self.messages = messages
+        return ModelReply(content=self.content, model="fake-model", usage={"total_tokens": 10})
+
+
+def test_model_plan_is_parsed_and_capabilities_are_validated():
+    provider = FakeProvider(
+        '{"objective":"Summarize a note","success_criteria":["Summary saved"],'
+        '"steps":[{"description":"Read note","capability":"filesystem-read","risk":"read"}]}'
+    )
+    result = draft_plan(provider, "Summarize a note")
+    assert result["plan"]["objective"] == "Summarize a note"
+    assert result["model"] == "fake-model"
+    assert "ready capabilities" in provider.messages[0].content
+
+
+def test_model_plan_rejects_planned_external_adapter():
+    provider = FakeProvider(
+        '{"objective":"Send email","success_criteria":["Sent"],'
+        '"steps":[{"description":"Send email","capability":"gmail","risk":"external"}]}'
+    )
+    with pytest.raises(ValueError, match="without a ready adapter"):
+        draft_plan(provider, "Send email")
+
+
+def test_model_plan_rejects_non_json_output():
+    with pytest.raises(ValueError, match="valid JSON"):
+        draft_plan(FakeProvider("Here is a plan."), "Do something")
