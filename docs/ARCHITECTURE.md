@@ -49,10 +49,12 @@ No credentials or personal memory are shared between clones by default. A user c
 | Permission primitives | Implemented |
 | Capability registry and risk metadata | Implemented |
 | Plan-to-capability validation | Implemented |
+| Scoped read-only filesystem workspace | Implemented (path confinement, symlink rejection, UTF-8 and size limits) |
 | Durable task queue, leases and audit events | Implemented |
 | OAuth credential vault | Planned |
 | Gmail / calendar / drive adapters | Planned |
 | Browser automation | Planned |
+| Filesystem write adapter | Planned (awaits authenticated approvals) |
 | Durable background executor | Planned (queue exists; no capability runner) |
 | Model routing / planner | Planned |
 | Agent-to-agent federation | Planned |
