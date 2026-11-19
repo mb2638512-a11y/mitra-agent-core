@@ -11,6 +11,9 @@ from mitra.planner import TaskPlan
 from mitra.engine import validate_transition
 from mitra.store import Store
 from mitra.registry import get_capability, list_capabilities
+from mitra.filesystem import Workspace
+
+workspace = Workspace(config.data_dir / "workspace")
 
 config = InstanceConfig.load()
 store = Store(config.data_dir / "mitra.sqlite3")
@@ -59,6 +62,18 @@ def mitra_get_capability(capability_id: str) -> dict:
     if capability is None:
         raise ValueError("Unknown capability ID")
     return capability.to_dict()
+
+
+@mcp.tool()
+def mitra_fs_list(path: str = ".", limit: int = 100) -> list[dict]:
+    """List entries inside this MITRA instance's read-only workspace."""
+    return workspace.list_files(path, limit=limit)
+
+
+@mcp.tool()
+def mitra_fs_read(path: str) -> dict:
+    """Read a UTF-8 text file inside this instance's read-only workspace (max 1 MB)."""
+    return workspace.read_text(path)
 
 
 @mcp.tool()
