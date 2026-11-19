@@ -66,3 +66,21 @@ def test_instance_approval_key_is_created_once_and_reused(tmp_path: Path):
 def test_malformed_approval_token_fails_closed():
     with pytest.raises(PermissionError):
         verify_approval_token("not-a-valid-token", "task-1", "s" * 48, intent_fingerprint="0" * 64)
+
+
+
+def test_approval_token_expires(monkeypatch):
+    import mitra.security as security
+
+    fingerprint = "a" * 64
+    monkeypatch.setattr(security.time, "time", lambda: 1000)
+    token = issue_approval_token(
+        "task-expiring", "local-user", "k" * 48,
+        intent_fingerprint=fingerprint, expires_in=30,
+    )
+    monkeypatch.setattr(security.time, "time", lambda: 1030)
+    with pytest.raises(PermissionError, match="expired"):
+        verify_approval_token(
+            token, "task-expiring", "k" * 48,
+            intent_fingerprint=fingerprint,
+        )
