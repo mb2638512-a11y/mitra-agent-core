@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from mitra.store import Store
-from mitra.security import issue_approval_token
+from mitra.security import approval_fingerprint, issue_approval_token
 
 
 def test_atomic_queue_lifecycle_and_audit(tmp_path: Path):
@@ -33,7 +33,7 @@ def test_high_impact_task_waits_for_explicit_approval(tmp_path: Path):
     assert gated["status"] == "awaiting_approval"
     assert gated["lease_token"] is None
     secret = "approval-secret-for-tests-only-123456"
-    approval = issue_approval_token(task["id"], "local-host-user", secret)
+    approval = issue_approval_token(task["id"], "local-host-user", secret, intent_fingerprint=approval_fingerprint(task))
     approved = store.approve_task(task["id"], approval, secret)
     assert approved["status"] == "running"
     assert store.task_events(task["id"])[0]["event"] == "approved_and_started"
@@ -120,3 +120,20 @@ def test_expired_running_lease_cannot_begin_verification(tmp_path: Path):
         )
     with pytest.raises(PermissionError, match="unexpired"):
         store.begin_verification(task["id"], claimed["lease_token"])
+
+
+
+def test_approval_is_invalidated_if_task_intent_changes(tmp_path: Path):
+    store = Store(tmp_path / "queue.sqlite3")
+    task = store.create_task("Send an email", details="To: alice@example.com", risk="external")
+    claimed = store.claim_task()
+    store.start_task(task["id"], claimed["lease_token"])
+    secret = "approval-secret-for-tests-only-123456"
+    approval = issue_approval_token(
+        task["id"], "local-host-user", secret,
+        intent_fingerprint=approval_fingerprint(task),
+    )
+    with store._connection() as db:
+        db.execute("UPDATE tasks SET details=? WHERE id=?", ("To: attacker@example.com", task["id"]))
+    with pytest.raises(PermissionError, match="invalid|intent"):
+        store.approve_task(task["id"], approval, secret)
