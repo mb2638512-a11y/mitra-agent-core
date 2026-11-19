@@ -47,7 +47,7 @@ def test_idempotency_key_prevents_duplicate_task(tmp_path: Path):
 def test_retry_budget_and_cancel(tmp_path: Path):
     store = Store(tmp_path / "queue.sqlite3")
     task = store.create_task("Retry me", max_attempts=1)
-    claimed = store.claim_task()
+    store.claim_task()
     result = store.retry_task(task["id"], delay_seconds=1, reason="temporary error")
     assert result["status"] == "failed"
 
@@ -61,7 +61,7 @@ def test_retry_budget_and_cancel(tmp_path: Path):
 def test_lease_recovery_requeues_expired_worker(tmp_path: Path):
     store = Store(tmp_path / "queue.sqlite3")
     task = store.create_task("Recover me")
-    claimed = store.claim_task(lease_seconds=5)
+    store.claim_task(lease_seconds=5)
     with store._connection() as db:
         db.execute(
             "UPDATE tasks SET lease_until='2000-01-01T00:00:00+00:00' WHERE id=?",
