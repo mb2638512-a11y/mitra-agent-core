@@ -88,12 +88,6 @@ def test_lease_heartbeat_and_queue_stats(tmp_path: Path):
         store.renew_lease(task["id"], "wrong-token", lease_seconds=60)
 
 
-from pathlib import Path
-
-import pytest
-
-from mitra.store import Store
-
 
 def test_expired_planning_lease_cannot_start(tmp_path: Path):
     store = Store(tmp_path / "queue.sqlite3")
