@@ -45,6 +45,7 @@ class TaskPlan:
         if not isinstance(raw_steps, list) or not 1 <= len(raw_steps) <= 30:
             raise ValueError("steps must contain 1-30 items")
         steps = []
+        seen_ids: set[str] = set()
         for index, item in enumerate(raw_steps, start=1):
             if not isinstance(item, dict):
                 raise ValueError("each step must be an object")
@@ -62,12 +63,19 @@ class TaskPlan:
             risk_order = {RiskLevel.READ: 0, RiskLevel.WRITE: 1, RiskLevel.EXTERNAL: 2, RiskLevel.FINANCIAL: 3, RiskLevel.DESTRUCTIVE: 4}
             if risk_order[risk] < risk_order[registered.risk]:
                 raise ValueError("step risk is below capability minimum: " + registered.risk.value)
+            step_id = str(item.get("id") or f"step-{index}").strip()
+            if not step_id or len(step_id) > 64 or step_id in seen_ids:
+                raise ValueError("step IDs must be unique and contain 1-64 characters")
+            approval_flag = item.get("requires_approval", False)
+            if not isinstance(approval_flag, bool):
+                raise ValueError("requires_approval must be a boolean")
+            seen_ids.add(step_id)
             steps.append(PlanStep(
-                id=str(item.get("id") or f"step-{index}"),
+                id=step_id,
                 description=description,
                 capability=capability,
                 risk=risk,
-                requires_approval=risk is not RiskLevel.READ or bool(item.get("requires_approval", False)),
+                requires_approval=risk is not RiskLevel.READ or approval_flag,
             ))
         return cls(objective, tuple(x.strip() for x in criteria), tuple(steps))
 
