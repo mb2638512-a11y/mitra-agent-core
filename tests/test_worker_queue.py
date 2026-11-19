@@ -71,3 +71,13 @@ def test_lease_recovery_requeues_expired_worker(tmp_path: Path):
     recovered = store.get_task(task["id"])
     assert recovered["status"] == "queued"
     assert recovered["lease_token"] is None
+
+def test_lease_heartbeat_and_queue_stats(tmp_path: Path):
+    store = Store(tmp_path / "queue.sqlite3")
+    task = store.create_task("Long running")
+    claimed = store.claim_task(lease_seconds=60)
+    renewed = store.renew_lease(task["id"], claimed["lease_token"], lease_seconds=120)
+    assert renewed["lease_until"] > claimed["lease_until"]
+    assert store.queue_stats()["planning"] == 1
+    with pytest.raises(PermissionError):
+        store.renew_lease(task["id"], "wrong-token", lease_seconds=60)
