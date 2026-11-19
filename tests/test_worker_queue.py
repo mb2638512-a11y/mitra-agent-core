@@ -86,3 +86,37 @@ def test_lease_heartbeat_and_queue_stats(tmp_path: Path):
     assert store.queue_stats()["planning"] == 1
     with pytest.raises(PermissionError):
         store.renew_lease(task["id"], "wrong-token", lease_seconds=60)
+
+
+from pathlib import Path
+
+import pytest
+
+from mitra.store import Store
+
+
+def test_expired_planning_lease_cannot_start(tmp_path: Path):
+    store = Store(tmp_path / "queue.sqlite3")
+    task = store.create_task("Expired plan")
+    claimed = store.claim_task(lease_seconds=5)
+    with store._connection() as db:
+        db.execute(
+            "UPDATE tasks SET lease_until='2000-01-01T00:00:00+00:00' WHERE id=?",
+            (task["id"],),
+        )
+    with pytest.raises(PermissionError, match="unexpired"):
+        store.start_task(task["id"], claimed["lease_token"])
+
+
+def test_expired_running_lease_cannot_begin_verification(tmp_path: Path):
+    store = Store(tmp_path / "queue.sqlite3")
+    task = store.create_task("Expired run")
+    claimed = store.claim_task()
+    store.start_task(task["id"], claimed["lease_token"])
+    with store._connection() as db:
+        db.execute(
+            "UPDATE tasks SET lease_until='2000-01-01T00:00:00+00:00' WHERE id=?",
+            (task["id"],),
+        )
+    with pytest.raises(PermissionError, match="unexpired"):
+        store.begin_verification(task["id"], claimed["lease_token"])
