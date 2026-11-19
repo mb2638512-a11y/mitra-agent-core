@@ -30,11 +30,9 @@ class PermissionDecision:
     reason: str
 
 
-def evaluate_action(risk: RiskLevel, *, approved: bool = False) -> PermissionDecision:
+def evaluate_action(risk: RiskLevel) -> PermissionDecision:
     if risk is RiskLevel.READ:
         return PermissionDecision(True, False, "Read-only action.")
-    if approved:
-        return PermissionDecision(True, False, "A verified approval token was supplied.")
     return PermissionDecision(False, True, f"{risk.value} actions require authenticated approval.")
 
 
