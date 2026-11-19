@@ -65,3 +65,13 @@ def test_workspace_write_rejects_symlink_target(tmp_path: Path):
     with pytest.raises(PermissionError, match="symlinks"):
         workspace.write_text("link.txt", "unsafe")
     assert outside.read_text(encoding="utf-8") == "safe"
+
+
+
+def test_workspace_rejects_symlinked_root(tmp_path: Path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "workspace"
+    linked.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(PermissionError, match="root"):
+        Workspace(linked)
