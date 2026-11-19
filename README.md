@@ -71,7 +71,7 @@ Files are exposed only from `<instance-data-dir>/workspace`. The adapter rejects
 
 ## Capability registry
 
-MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed. A typed adapter contract and explicit in-process allowlist now exist; the filesystem read adapter is the first registered implementation. Adapters are not auto-discovered or invoked by the task queue.
+MITRA maintains stable capability IDs with readiness (ready, optional, planned), minimum risk levels, required scopes and adapter identifiers. Plan validation rejects unknown capability IDs and prevents a plan from understating a capability's minimum risk. Planned capabilities are descriptive only; they cannot be executed until an adapter is installed. A typed adapter contract and explicit in-process allowlist now exist; the filesystem read adapter is the first registered implementation. `authorize_adapter_execution` checks the active task lease, ready capability, installed adapter, operation allowlist and minimum risk before returning a permit. It does not invoke the adapter; no background worker or external side-effect executor is enabled yet.
 
 ## Authenticated local approvals
 
