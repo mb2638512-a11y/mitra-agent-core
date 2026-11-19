@@ -22,7 +22,7 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
 python -m pip install -e ".[dev]"
-mitra setup --name my-agent
+mitra setup --name my-agent --instance-id my-agent
 ```
 
 The command initializes an isolated MITRA instance and prints a portable MCP configuration. To merge it into a host config automatically, use `mitra setup --name my-agent --config /path/to/mcp-config.json`. See [Universal host setup](docs/HOST_SETUP.md).
@@ -37,12 +37,12 @@ Give every host/agent a unique instance ID before running `mitra setup`:
 # Example: first independent agent profile
 # Windows PowerShell: $env:MITRA_INSTANCE_ID="agent-alpha"
 # macOS/Linux: export MITRA_INSTANCE_ID=agent-alpha
-mitra setup --name "Agent Alpha"
+mitra setup --name "Agent Alpha" --instance-id agent-alpha
 
 # A second agent gets a separate identity and database:
 # Windows PowerShell: $env:MITRA_INSTANCE_ID="agent-beta"
 # macOS/Linux: export MITRA_INSTANCE_ID=agent-beta
-mitra setup --name "Agent Beta"
+mitra setup --name "Agent Beta" --instance-id agent-beta
 ```
 
 Each instance has its own local database. A host must support MCP and allow local server configuration; connection is not magically automatic in every product.
