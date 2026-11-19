@@ -33,7 +33,7 @@ _CAPABILITIES = (
     Capability("plan-validation", "Plan validation", "ready", RiskLevel.READ, "Validate structured plans and declared capabilities."),
     Capability("model-provider", "OpenAI-compatible model provider", "optional", RiskLevel.EXTERNAL, "Optional remote model API; configured with environment variables.", ("model:invoke",), "providers"),
     Capability("filesystem-read", "Filesystem read adapter", "ready", RiskLevel.READ, "Scoped read-only workspace listing and UTF-8 text reading.", ("filesystem:read",), "filesystem"),
-    Capability("filesystem-write", "Filesystem write adapter", "planned", RiskLevel.WRITE, "Scoped file creation and modification.", ("filesystem:write",), "filesystem"),
+    Capability("filesystem-write", "Filesystem write adapter", "ready", RiskLevel.WRITE, "Approved, receipt-tracked text writes confined to the instance workspace.", ("filesystem:write",), "filesystem"),
     Capability("browser", "Browser automation", "planned", RiskLevel.EXTERNAL, "Policy-bound browser navigation and actions.", ("browser:read", "browser:act"), "browser"),
     Capability("gmail", "Gmail integration", "planned", RiskLevel.EXTERNAL, "Gmail API through user-authorized OAuth.", ("gmail.readonly", "gmail.send"), "gmail"),
     Capability("calendar", "Calendar integration", "planned", RiskLevel.EXTERNAL, "Calendar access through user-authorized OAuth.", ("calendar.readonly", "calendar.events"), "calendar"),
