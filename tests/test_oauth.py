@@ -15,6 +15,7 @@ def make_vault(tmp_path: Path):
 
 
 def test_oauth_pkce_flow_stores_tokens_encrypted_and_consumes_state(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("MITRA_OAUTH_ALLOWED_HOSTS", "accounts.example.test")
     vault = make_vault(tmp_path)
     started = start_oauth_flow(
         vault,
@@ -82,7 +83,8 @@ def test_oauth_rejects_insecure_remote_endpoints(tmp_path: Path):
         )
 
 
-def test_oauth_extra_parameters_cannot_override_pkce_or_state(tmp_path: Path):
+def test_oauth_extra_parameters_cannot_override_pkce_or_state(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("MITRA_OAUTH_ALLOWED_HOSTS", "accounts.example.test")
     with pytest.raises(ValueError, match="protected"):
         start_oauth_flow(
             make_vault(tmp_path),
@@ -94,4 +96,19 @@ def test_oauth_extra_parameters_cannot_override_pkce_or_state(tmp_path: Path):
             redirect_uri="http://127.0.0.1:8766/callback",
             scopes=["profile.read"],
             extra_parameters={"state": "fixed"},
+        )
+
+
+
+def test_oauth_rejects_untrusted_provider_hosts(tmp_path: Path):
+    with pytest.raises(PermissionError, match="not allowlisted"):
+        start_oauth_flow(
+            make_vault(tmp_path),
+            provider="custom",
+            account_id="user",
+            authorization_endpoint="https://untrusted.example.test/authorize",
+            token_endpoint="https://untrusted.example.test/token",
+            client_id="client",
+            redirect_uri="http://127.0.0.1:8766/callback",
+            scopes=["profile.read"],
         )
