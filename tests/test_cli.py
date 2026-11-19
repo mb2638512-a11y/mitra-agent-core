@@ -29,5 +29,6 @@ def test_universal_setup_prints_generic_mcp_config(tmp_path: Path, monkeypatch, 
     config = json.loads(config_text.split("\n\nPaste this", 1)[0])
     entry = config["mcpServers"]["mitra"]
     assert entry["env"]["MITRA_INSTANCE_ID"] == "universal-agent"
+    assert entry["env"]["MITRA_DISPLAY_NAME"] == "Universal Agent"
     assert entry["args"] == ["-m", "mitra.cli", "serve"]
     assert "claude" not in output.lower()
