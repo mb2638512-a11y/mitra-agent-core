@@ -225,7 +225,8 @@ def mitra_draft_plan(objective: str, route: str = "planning") -> dict:
     if provider is None:
         raise RuntimeError(
             "No model provider configured. Set MITRA_MODEL_BASE_URL and MITRA_MODEL_NAME, "
-            "then set the API key in the configured environment variable."
+            "or configure MITRA_MODEL_PROVIDERS with MITRA_MODEL_DEFAULT and optional MITRA_MODEL_ROUTES. "
+            "Keep provider API keys in their named environment variables."
         )
     return draft_plan(provider, objective, route=route)
 
