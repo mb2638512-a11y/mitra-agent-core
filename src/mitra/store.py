@@ -356,7 +356,7 @@ class Store:
                 if (existing["task_id"] != task_id or existing["capability_id"] != capability_id
                         or existing["operation"] != operation or existing["request_hash"] != request_hash):
                     raise ValueError("idempotency key was already used for a different operation")
-                return dict(existing)
+                return {**dict(existing), "_created": False}
             receipt_id = str(uuid.uuid4())
             db.execute(
                 """INSERT INTO execution_receipts
@@ -366,9 +366,9 @@ class Store:
                 (receipt_id, task_id, capability_id, operation, idempotency_key, request_hash, now),
             )
             self._event(db, task_id, "adapter_operation_started", f"receipt={receipt_id}")
-            return dict(db.execute(
+            return {**dict(db.execute(
                 "SELECT * FROM execution_receipts WHERE id=?", (receipt_id,)
-            ).fetchone())
+            ).fetchone()), "_created": True}
 
     def finish_execution_receipt(
         self, task_id: str, lease_token: str, receipt_id: str, *,
