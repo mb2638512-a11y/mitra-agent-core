@@ -151,8 +151,10 @@ class Store:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 raise ValueError("Task not found")
-            if row["status"] != "planning" or row["lease_token"] != lease_token:
-                raise PermissionError("valid active planning lease is required")
+            now_text = utc_now()
+            if (row["status"] != "planning" or row["lease_token"] != lease_token
+                    or not row["lease_until"] or row["lease_until"] <= now_text):
+                raise PermissionError("valid unexpired planning lease is required")
             decision = evaluate_action(RiskLevel(row["risk"]))
             if not decision.allowed:
                 db.execute(
@@ -235,8 +237,10 @@ class Store:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 raise ValueError("Task not found")
-            if row["status"] != "running" or row["lease_token"] != lease_token:
-                raise PermissionError("valid running task lease is required")
+            now_text = utc_now()
+            if (row["status"] != "running" or row["lease_token"] != lease_token
+                    or not row["lease_until"] or row["lease_until"] <= now_text):
+                raise PermissionError("valid unexpired running task lease is required")
             db.execute("UPDATE tasks SET status='verifying', updated_at=? WHERE id=?", (utc_now(), task_id))
             self._event(db, task_id, "verification_started")
             return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
@@ -246,8 +250,10 @@ class Store:
             row = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 raise ValueError("Task not found")
-            if row["status"] != "verifying" or row["lease_token"] != lease_token:
-                raise PermissionError("task must be verifying under the active lease")
+            now_text = utc_now()
+            if (row["status"] != "verifying" or row["lease_token"] != lease_token
+                    or not row["lease_until"] or row["lease_until"] <= now_text):
+                raise PermissionError("task must be verifying under an unexpired lease")
             status = "completed" if success else "failed"
             db.execute(
                 "UPDATE tasks SET status=?, last_error=?, lease_token=NULL, lease_until=NULL, updated_at=? WHERE id=?",
