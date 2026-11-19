@@ -92,3 +92,24 @@ def test_model_plan_rejects_planned_external_adapter():
 def test_model_plan_rejects_non_json_output():
     with pytest.raises(ValueError, match="valid JSON"):
         draft_plan(FakeProvider("Here is a plan."), "Do something")
+
+
+
+def test_plan_rejects_duplicate_step_ids():
+    with pytest.raises(ValueError, match="unique"):
+        TaskPlan.from_dict({
+            "objective": "Make a report", "success_criteria": ["Done"],
+            "steps": [
+                {"id": "same", "description": "Read", "capability": "filesystem-read"},
+                {"id": "same", "description": "Write", "capability": "filesystem-write", "risk": "write"},
+            ],
+        })
+
+
+def test_plan_requires_boolean_approval_flag():
+    with pytest.raises(ValueError, match="boolean"):
+        TaskPlan.from_dict({
+            "objective": "Read a file", "success_criteria": ["Done"],
+            "steps": [{"description": "Read", "capability": "filesystem-read",
+                       "requires_approval": "false"}],
+        })
