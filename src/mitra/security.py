@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -70,12 +71,12 @@ def verify_approval_token(token: str, task_id: str, secret: str) -> dict:
         payload = json.loads(base64.urlsafe_b64decode(padded.encode()))
         if payload["task_id"] != task_id:
             raise ValueError("task mismatch")
-        if int(payload["expires_at"]) < int(time.time()):
+        if int(payload["expires_at"]) <= int(time.time()):
             raise ValueError("token expired")
         if not payload["approver"] or not payload["nonce"]:
             raise ValueError("missing claims")
         return payload
-    except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError, binascii.Error) as exc:
         raise PermissionError("approval token is invalid, expired or not for this task") from exc
 
 
