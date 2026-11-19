@@ -91,6 +91,8 @@ def connect_host(host: str, custom_path: str | None = None) -> int:
     }
     if os.getenv("MITRA_HOME"):
         entry["env"]["MITRA_HOME"] = os.environ["MITRA_HOME"]
+    if os.getenv("MITRA_APPROVAL_SECRET"):
+        entry["env"]["MITRA_APPROVAL_SECRET"] = os.environ["MITRA_APPROVAL_SECRET"]
     servers["mitra"] = entry
 
     temporary = config_path.with_suffix(config_path.suffix + ".tmp")
