@@ -195,8 +195,8 @@ def mitra_create_task(title: str, details: str = "", risk: str = "read", max_att
     clean_title = title.strip()
     if not clean_title or len(clean_title) > 200:
         raise ValueError("title must contain 1-200 characters")
-    if len(details) > 10_000:
-        raise ValueError("details must be at most 10000 characters")
+    if len(details.encode("utf-8")) > 1_050_000:
+        raise ValueError("details must be at most 1050000 UTF-8 bytes")
     return store.create_task(clean_title, details, risk=risk, max_attempts=max_attempts, idempotency_key=idempotency_key or None)
 
 
