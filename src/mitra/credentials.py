@@ -128,7 +128,7 @@ class CredentialVault:
     def list_metadata(self) -> list[dict]:
         with self._connection() as db:
             rows = db.execute(
-                "SELECT provider, account_id, updated_at FROM credentials ORDER BY provider, account_id"
+                "SELECT provider, account_id, updated_at FROM credentials WHERE provider != '_oauth_pending' ORDER BY provider, account_id"
             ).fetchall()
         return [dict(row) for row in rows]
 
