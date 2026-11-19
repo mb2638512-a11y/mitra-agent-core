@@ -33,9 +33,14 @@ The current read adapter exposes only the per-instance `workspace` directory thr
 
 ## Not enabled yet
 
-There is no general-purpose background executor. The only side-effecting adapter currently exposed is the explicit, task-bound filesystem text write inside the instance workspace. It checks a live lease, ready capability, operation allowlist and minimum risk, then records a durable idempotency receipt. It does not run arbitrary code or external actions. Next gates are an independently supervised worker, authenticated host identity, OAuth adapters, provider-side idempotency and mock-service integration tests.
+The supervised local worker is available as `mitra worker`. It atomically claims queued tasks and separately reserves approved running tasks. Its explicit handlers support workspace read/list and task-approved text writes only. Each operation checks the live lease, ready capability, adapter allowlist and minimum risk, then records a durable idempotency receipt before finalizing the task. It does not run arbitrary code, shell commands or external actions. Remaining gates are stronger host identity, OAuth adapters, provider-side idempotency and integration tests against mock services.
 
 
 ## Optional model planning
 
 When an OpenAI-compatible provider is configured, `mitra_draft_plan` asks it for a JSON proposal. MITRA parses the response strictly, validates the plan schema, and rejects any step that references a capability without a ready adapter. The prompt includes only ready adapter-backed capabilities. Model output is untrusted: it cannot register tools, lower risk, approve a task or execute a step. A proposed write must still be translated into a specific task intent and pass the local signed-approval flow.
+
+
+## Worker operation contract
+
+A worker task's JSON details must declare a ready capability, an allowlisted operation and its exact arguments. The current handler supports `filesystem-read` with `read` or `list`, and `filesystem-write` with `write`. Write tasks move to `awaiting_approval`; the worker cannot execute them until the local task-bound approval flow issues a running lease. Unsupported task types are retried under the task's bounded retry budget. Read output is retained in the local execution receipt; the worker's console summary omits file contents.
