@@ -32,7 +32,7 @@ _CAPABILITIES = (
     Capability("task-audit", "Task audit history", "ready", RiskLevel.READ, "Inspect task lifecycle events."),
     Capability("plan-validation", "Plan validation", "ready", RiskLevel.READ, "Validate structured plans and declared capabilities."),
     Capability("model-provider", "OpenAI-compatible model provider", "optional", RiskLevel.EXTERNAL, "Optional remote model API; configured with environment variables.", ("model:invoke",), "providers"),
-    Capability("credential-vault", "Encrypted credential vault", "ready", RiskLevel.WRITE, "Per-instance AES-256-GCM storage for OAuth tokens; secrets never returned to agent tools.", ("credentials:store",), "credentials"),
+    Capability("credential-vault", "Encrypted credential vault", "ready", RiskLevel.WRITE, "Per-instance AES-256-GCM storage for OAuth tokens; secrets never returned to agent tools.", ("credentials:store",)),
     Capability("oauth-pkce", "OAuth 2.0 PKCE flow", "optional", RiskLevel.EXTERNAL, "User-consented OAuth authorization code flow with encrypted local token storage.", ("oauth:consent",), "oauth"),
     Capability("filesystem-read", "Filesystem read adapter", "ready", RiskLevel.READ, "Scoped read-only workspace listing and UTF-8 text reading.", ("filesystem:read",), "filesystem"),
     Capability("filesystem-write", "Filesystem write adapter", "ready", RiskLevel.WRITE, "Approved, receipt-tracked text writes confined to the instance workspace.", ("filesystem:write",), "filesystem"),
