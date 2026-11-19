@@ -74,15 +74,17 @@ MITRA maintains stable capability IDs with readiness (ready, optional, planned),
 
 ## Authenticated local approvals
 
-High-impact tasks cannot be started with an `approved_by` label. Configure a private `MITRA_APPROVAL_SECRET` of at least 32 characters in the local environment used by both the CLI and MCP host. Keep it out of source control and never paste it into an agent prompt. When a task reaches `awaiting_approval`, the local user issues a short-lived token:
+High-impact tasks cannot be started with an `approved_by` label. MITRA creates a per-instance signing key at `<instance-data-dir>/approval.key` on first use. On POSIX systems it is created with owner-only mode (`0600`); on Windows it inherits permissions from the user's private application-data directory. The key is not copied into MCP host JSON and must never be committed or shared.
+
+When a task reaches `awaiting_approval`, the local user issues a short-lived token:
 
 ```powershell
-# Windows PowerShell; use the same instance ID as the MCP host
-$env:MITRA_APPROVAL_SECRET = "replace-with-a-long-random-secret-at-least-32-chars"
+# Use the same MITRA_INSTANCE_ID and MITRA_HOME as the MCP host
 mitra approve-token --task-id TASK_ID --approver "Your local identity"
 ```
 
-Pass the resulting one-time token to `mitra_approve_task`. Tokens are HMAC-signed, bound to one task, expire within 30–600 seconds, and their nonce is consumed once in SQLite. This authenticates possession of the local secret, not a remote identity provider; protect the host account and secret accordingly.
+Pass the resulting one-time token to `mitra_approve_task`. Tokens are HMAC-signed, bound to one task, expire within 30–600 seconds, and their nonce is consumed once in SQLite. This proves local control of the instance key, not identity through an external identity provider. Protect the operating-system account and instance data directory accordingly.
+
 
 ## Optional model provider
 
