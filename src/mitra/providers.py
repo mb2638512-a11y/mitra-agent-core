@@ -38,7 +38,7 @@ class OpenAICompatibleProvider:
         self.timeout_seconds = timeout_seconds
         parsed = urllib.parse.urlparse(self.base_url)
         local_http = parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
-        if (not parsed.hostname or parsed.username or parsed.password or parsed.fragment
+        if (not parsed.hostname or parsed.username or parsed.password or parsed.fragment or parsed.query
                 or (parsed.scheme != "https" and not local_http)):
             raise ValueError("model provider URLs must use HTTPS; HTTP is allowed only for loopback")
         if not self.model or not self.api_key_env:
