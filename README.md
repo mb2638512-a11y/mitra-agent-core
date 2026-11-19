@@ -31,7 +31,7 @@ The default server uses **stdio**: the MCP host launches MITRA as a subprocess. 
 
 ## Isolated clones
 
-Give every host/agent a unique instance ID before running `mitra init` and `mitra connect`:
+Give every host/agent a unique instance ID before running `mitra setup`:
 
 ```bash
 # Example: first independent agent profile
