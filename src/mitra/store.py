@@ -140,7 +140,7 @@ class Store:
             claimed = db.execute("SELECT * FROM tasks WHERE id=?", (row["id"],)).fetchone()
         return dict(claimed) if claimed else None
 
-    def start_task(self, task_id: str, lease_token: str, *, approved: bool = False) -> dict[str, Any]:
+    def start_task(self, task_id: str, lease_token: str, *, approved_by: str | None = None) -> dict[str, Any]:
         from mitra.security import RiskLevel, evaluate_action
 
         with self._connection() as db:
@@ -149,7 +149,11 @@ class Store:
                 raise ValueError("Task not found")
             if row["status"] not in {"planning", "awaiting_approval"} or row["lease_token"] != lease_token:
                 raise PermissionError("valid active worker lease is required")
-            decision = evaluate_action(RiskLevel(row["risk"]), approved=approved)
+            if approved_by is not None:
+                approved_by = approved_by.strip()
+                if not approved_by or len(approved_by) > 200:
+                    raise ValueError("approved_by must contain 1-200 characters")
+            decision = evaluate_action(RiskLevel(row["risk"]), approved=bool(approved_by))
             if not decision.allowed:
                 db.execute(
                     "UPDATE tasks SET status='awaiting_approval', updated_at=? WHERE id=?",
@@ -158,7 +162,7 @@ class Store:
                 self._event(db, task_id, "approval_required", decision.reason)
                 return dict(db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone())
             db.execute("UPDATE tasks SET status='running', updated_at=? WHERE id=?", (utc_now(), task_id))
-            self._event(db, task_id, "started")
+            self._event(db, task_id, "approved_and_started" if approved_by else "started", f"claimed_approver={approved_by}" if approved_by else "")
             result = db.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
         return dict(result)
 
