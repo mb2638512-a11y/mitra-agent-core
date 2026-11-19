@@ -57,6 +57,18 @@ Each instance has its own local database. A host must support MCP and allow loca
 - `mitra_validate_plan` — validate a structured plan and risk-tagged steps.
 - `mitra_check_transition` — preview a task-state change and approval gate.
 
+## Optional model provider
+
+MITRA includes a stdlib-only OpenAI-compatible chat adapter. It is opt-in and makes no network calls unless application code explicitly calls it. Configure:
+
+```text
+MITRA_MODEL_BASE_URL=https://api.example.com/v1
+MITRA_MODEL_NAME=your-model-name
+MITRA_MODEL_API_KEY_ENV=MITRA_MODEL_API_KEY
+```
+
+Set the actual `MITRA_MODEL_API_KEY` secret in the process environment or an OS secret manager. Never put a real key in `.env.example`, source control, task plans or memory. This adapter is a provider building block; it is not yet wired into an autonomous planner or task executor.
+
 ## Instance data
 
 - Windows: `%LOCALAPPDATA%/MITRA/instances/<instance-id>/`
