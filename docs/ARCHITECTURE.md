@@ -51,7 +51,7 @@ No credentials or personal memory are shared between clones by default. A user c
 | Plan-to-capability validation | Implemented |
 | Scoped filesystem workspace | Read and approved text write implemented; path confinement, symlink rejection and size limits |
 | Durable task queue, leases and audit events | Implemented |
-| OAuth credential vault | Planned |
+| Per-instance AES-256-GCM credential vault and OAuth PKCE flow | Implemented foundation; provider-specific API adapters remain planned |
 | Gmail / calendar / drive adapters | Planned |
 | Browser automation | Planned |
 
